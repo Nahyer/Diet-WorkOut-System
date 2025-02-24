@@ -4,6 +4,7 @@ import type React from "react"
 
 import { ArrowRight, Calendar, Apple, Dumbbell, ChevronRight, Star, Users, Trophy } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import BMICalculator from "@/components/BMICalculator"
 
 export default function Home() {
   return (
@@ -69,7 +70,7 @@ export default function Home() {
               description="Get personalized workout plans that adapt to your progress and goals."
             />
             <FeatureCard
-              icon={<Apple className="h-8 w-8 text-red-500" />}
+              icon={<Apple className="h-8 w-8 text-green-500" />}
               title="Smart Nutrition"
               description="Receive customized meal plans and real-time nutritional guidance."
             />
@@ -88,19 +89,7 @@ export default function Home() {
       </section>
 
       {/* BMI Calculator Section */}
-      <section className="py-16 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="max-w-xl mx-auto text-center">
-            <h2 className="text-2xl md:text-3xl font-bold mb-8">Quick BMI Calculator</h2>
-            <div className="flex flex-col sm:flex-row gap-4 mb-4">
-              <input type="number" placeholder="Weight (kg)" className="flex-1 p-3 border rounded-lg" />
-              <input type="number" placeholder="Height (m)" className="flex-1 p-3 border rounded-lg" />
-            </div>
-            <Button className="bg-red-500 hover:bg-red-600 w-full sm:w-auto">Calculate BMI</Button>
-          </div>
-        </div>
-      </section>
-
+     <BMICalculator />
       {/* Success Stories */}
       <section className="py-16 md:py-20 bg-gray-50">
         <div className="container mx-auto px-4">
