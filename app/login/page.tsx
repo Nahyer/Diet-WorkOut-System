@@ -11,29 +11,39 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { useAuth } from "../contexts/AuthContext"
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [errorMessage, setErrorMessage] = useState("")
   const router = useRouter()
+  const { login, error } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsLoading(false)
-    router.push("/dashboard")
+    setErrorMessage("")
+    
+    try {
+      await login(email, password)
+      router.push("/dashboard")
+    } catch (err) {
+      console.error("Login failed:", err)
+      setErrorMessage(error || "Failed to login. Please check your credentials.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    // For now, we'll just simulate the Google sign-in
+    // In a real implementation, you would integrate with Google OAuth
     setIsLoading(false)
-    router.push("/dashboard")
+    setErrorMessage("Google Sign In is not implemented yet")
   }
 
   return (
@@ -44,6 +54,12 @@ export default function Login() {
           <CardDescription>Enter your email and password to access your account</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {errorMessage && (
+            <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {errorMessage}
+            </div>
+          )}
+          
           <div className="space-y-4">
             <Button
               variant="outline"
@@ -153,4 +169,3 @@ export default function Login() {
     </div>
   )
 }
-
