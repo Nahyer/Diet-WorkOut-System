@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
@@ -11,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useAuth } from "../contexts/AuthContext"
+import { useAuth } from "@/app/contexts/AuthContext"
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false)
@@ -20,7 +18,18 @@ export default function Login() {
   const [password, setPassword] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
   const router = useRouter()
-  const { login, error } = useAuth()
+  const { login, error, isAuthenticated, user } = useAuth()
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (user?.role === "admin") {
+        router.push("/admin")
+      } else {
+        router.push("/dashboard")
+      }
+    }
+  }, [isAuthenticated, router, user])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,7 +38,7 @@ export default function Login() {
     
     try {
       await login(email, password)
-      router.push("/dashboard")
+      // The redirection happens in the login function in AuthContext
     } catch (err) {
       console.error("Login failed:", err)
       setErrorMessage(error || "Failed to login. Please check your credentials.")
