@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Brain, Target, Users, Award, TrendingUp, Shield, ChevronRight, Github, Linkedin, Twitter } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -225,9 +226,11 @@ export default function About() {
           <p className="text-xl mb-8 text-white/90">
             Join thousands of others who have already transformed their lives
           </p>
-          <Button size="lg" variant="secondary" className="bg-white text-red-500 hover:bg-gray-100">
-            Get Started Now <ChevronRight className="ml-2 h-5 w-5" />
-          </Button>
+          <Link href="/login" passHref>
+            <Button variant="default" size="lg">
+              Get Started <ChevronRight className="h-6 w-6 ml-2" />
+            </Button>
+          </Link>
         </div>
       </section>
     </div>
