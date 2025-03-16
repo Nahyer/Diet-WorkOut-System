@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Camera, Download, Award, TrendingUp, Ruler, Dumbbell, Share2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,59 +19,183 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts"
-
-// Mock data
-const weightData = [
-  { date: "Jan", weight: 185 },
-  { date: "Feb", weight: 183 },
-  { date: "Mar", weight: 181 },
-  { date: "Apr", weight: 179 },
-  { date: "May", weight: 178 },
-  { date: "Jun", weight: 176 },
-]
-
-const measurementsData = [
-  { date: "Jan", chest: 42, waist: 34, arms: 15 },
-  { date: "Feb", chest: 42.5, waist: 33.5, arms: 15.2 },
-  { date: "Mar", chest: 43, waist: 33, arms: 15.5 },
-  { date: "Apr", chest: 43.5, waist: 32.5, arms: 15.7 },
-  { date: "May", chest: 44, waist: 32, arms: 16 },
-  { date: "Jun", chest: 44.5, waist: 31.5, arms: 16.2 },
-]
-
-const strengthData = [
-  { exercise: "Bench Press", previous: 185, current: 225 },
-  { exercise: "Squat", previous: 225, current: 275 },
-  { exercise: "Deadlift", previous: 275, current: 315 },
-  { exercise: "Shoulder Press", previous: 115, current: 135 },
-]
-
-const achievements = [
-  {
-    title: "Weight Loss Champion",
-    description: "Lost 10 pounds",
-    icon: TrendingUp,
-    progress: 100,
-    color: "text-green-500",
-  },
-  {
-    title: "Strength Warrior",
-    description: "Increased all lifts by 20%",
-    icon: Dumbbell,
-    progress: 80,
-    color: "text-blue-500",
-  },
-  {
-    title: "Consistency King",
-    description: "Worked out 20 days in a row",
-    icon: Award,
-    progress: 75,
-    color: "text-yellow-500",
-  },
-]
+import { fetchProgressTracking, createProgressRecord, updateProgressRecord, transformProgressData, ProgressTrackingData } from "../../services/progressTrackingApi"
+import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "../../contexts/AuthContext" // Assuming you have an auth context
 
 export default function ProgressPage() {
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
+  // State for transformed data
+  const [weightData, setWeightData] = useState<{ date: string; weight: number }[]>([])
+  const [measurementsData, setMeasurementsData] = useState<{ date: string; chest: number; waist: number; arms: number }[]>([])
+  const [strengthData, setStrengthData] = useState<{ exercise: string; previous: number; current: number }[]>([])
+  const [achievements, setAchievements] = useState<{ title: string; description: string; icon: string; progress: number; color: string }[]>([])
+  const [summary, setSummary] = useState({
+    totalWeightLoss: 0,
+    monthlyWeightLoss: 0,
+    currentWeight: 0,
+    progressPercentage: 0,
+    strengthIncrease: 0,
+    bodyFat: 0,
+    achievementsCompleted: 0,
+    totalAchievements: 0
+  })
+  const [photos, setPhotos] = useState<{ before: string | null; after: string | null }>({
+    before: null,
+    after: null
+  })
+  
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const { toast } = useToast()
+  const { user } = useAuth() // Assuming your auth context provides the current user
+
+  // Fetch progress data on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user?.id) return;
+      
+      try {
+        setLoading(true)
+        const progressData = await fetchProgressTracking(user.id.toString())
+        
+        // Transform the data for charts and display
+        const transformed = transformProgressData(progressData)
+        
+        setWeightData(transformed.weightData)
+        setMeasurementsData(transformed.measurementsData)
+        setStrengthData(transformed.strengthData || [])
+        setAchievements(transformed.achievements || [])
+        setSummary(transformed.summary)
+        setPhotos({
+          before: transformed.photos?.before ?? null,
+          after: transformed.photos?.after ?? null
+        })
+        setLoading(false)
+      } catch (err) {
+        console.error('Error fetching progress data:', err)
+        setError('Failed to load progress data. Please try again later.')
+        toast({
+          title: "Error",
+          description: "Failed to load your progress data. Please try again.",
+          variant: "destructive",
+        })
+        setLoading(false)
+      }
+    }
+    
+    fetchData()
+  }, [user?.id, toast])
+
+  // Function to handle adding a new progress record
+  const handleAddProgressRecord = async (data: Partial<ProgressTrackingData>) => {
+    if (!user?.id) return;
+    
+    try {
+      const newRecord: ProgressTrackingData = {
+        userId: user?.id?.toString() || "",
+        date: new Date().toISOString(),
+        ...data
+      }
+      
+      await createProgressRecord(newRecord)
+      
+      // Refresh the data
+      const progressData = await fetchProgressTracking(user.id.toString())
+      const transformed = transformProgressData(progressData)
+      
+      setWeightData(transformed.weightData)
+      setMeasurementsData(transformed.measurementsData)
+      setStrengthData(transformed.strengthData || [])
+      setAchievements(transformed.achievements || [])
+      setSummary(transformed.summary)
+      setPhotos({
+        before: transformed.photos?.before ?? null,
+        after: transformed.photos?.after ?? null
+      })
+      
+      toast({
+        title: "Success",
+        description: "Your progress has been recorded!",
+      })
+    } catch (err) {
+      console.error('Error adding progress record:', err)
+      toast({
+        title: "Error",
+        description: "Failed to save your progress. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Function to handle progress photo upload
+  const handlePhotoUpload = async (type: 'before' | 'after', file: File) => {
+    if (!user?.id || !file) return;
+    
+    try {
+      // Create a file reader to convert the file to base64
+      const reader = new FileReader()
+      
+      reader.onloadend = async () => {
+        const base64String = reader.result
+        
+        // Get the most recent progress record or create a new one
+        let progressData = user?.id ? await fetchProgressTracking(user.id.toString()) : []
+        let latestRecord = progressData.length > 0 ? progressData[progressData.length - 1] : null
+        
+        if (latestRecord) {
+          // Update the existing record
+          const updatedPhotos = {
+            ...latestRecord.photos,
+            [type]: base64String
+          }
+          
+          await updateProgressRecord(latestRecord.id!, {
+            ...latestRecord,
+            photos: updatedPhotos
+          })
+        } else {
+          // Create a new record
+          const newRecord = {
+            userId: user?.id?.toString() || "",
+            date: new Date().toISOString(),
+            photos: {
+              [type]: base64String
+            }
+          }
+          
+          await createProgressRecord(newRecord)
+        }
+        
+        // Update the local state
+        setPhotos(prev => ({
+          ...prev,
+          [type]: base64String
+        }))
+        
+        toast({
+          title: "Success",
+          description: `Your ${type} photo has been uploaded!`,
+        })
+      }
+      
+      reader.readAsDataURL(file)
+    } catch (err) {
+      console.error(`Error uploading ${type} photo:`, err)
+      toast({
+        title: "Error",
+        description: `Failed to upload your ${type} photo. Please try again.`,
+        variant: "destructive",
+      })
+    }
+  }
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen">Loading your fitness data...</div>
+  }
+
+  if (error) {
+    return <div className="flex items-center justify-center h-screen text-red-500">{error}</div>
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-8">
@@ -99,9 +223,9 @@ export default function ProgressPage() {
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">9 lbs</div>
-            <p className="text-xs text-muted-foreground">-2 lbs this month</p>
-            <Progress value={75} className="mt-3 h-2" />
+            <div className="text-2xl font-bold">{summary.totalWeightLoss} lbs</div>
+            <p className="text-xs text-muted-foreground">-{summary.monthlyWeightLoss} lbs this month</p>
+            <Progress value={summary.progressPercentage} className="mt-3 h-2" />
           </CardContent>
         </Card>
         <Card>
@@ -110,7 +234,7 @@ export default function ProgressPage() {
             <Dumbbell className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+25%</div>
+            <div className="text-2xl font-bold">+{summary.strengthIncrease}%</div>
             <p className="text-xs text-muted-foreground">Across major lifts</p>
             <Progress value={85} className="mt-3 h-2" />
           </CardContent>
@@ -121,7 +245,7 @@ export default function ProgressPage() {
             <Ruler className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">18%</div>
+            <div className="text-2xl font-bold">{summary.bodyFat}%</div>
             <p className="text-xs text-muted-foreground">-2% from start</p>
             <Progress value={65} className="mt-3 h-2" />
           </CardContent>
@@ -132,9 +256,9 @@ export default function ProgressPage() {
             <Award className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">3 new this month</p>
-            <Progress value={80} className="mt-3 h-2" />
+            <div className="text-2xl font-bold">{summary.achievementsCompleted}</div>
+            <p className="text-xs text-muted-foreground">{summary.achievementsCompleted} of {summary.totalAchievements} complete</p>
+            <Progress value={summary.achievementsCompleted / summary.totalAchievements * 100} className="mt-3 h-2" />
           </CardContent>
         </Card>
       </div>
@@ -156,28 +280,105 @@ export default function ProgressPage() {
             <CardContent>
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-4">
-                  <div className="aspect-square relative rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center">
-                    <div className="text-center">
-                      <Camera className="mx-auto h-12 w-12 text-gray-400" />
-                      <h3 className="mt-2 text-sm font-semibold">Before Photo</h3>
-                      <p className="mt-1 text-sm text-gray-500">Upload your starting point photo</p>
-                      <Button className="mt-4" variant="outline" size="sm">
-                        <Plus className="mr-2 h-4 w-4" /> Add Photo
+                  {photos.before ? (
+                    <div className="aspect-square relative rounded-lg border overflow-hidden">
+                      <img 
+                        src={photos.before} 
+                        alt="Before photo" 
+                        className="object-cover w-full h-full"
+                      />
+                      <Button 
+                        className="absolute bottom-4 right-4" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => document.getElementById('before-photo-input')?.click()}
+                      >
+                        Update
                       </Button>
+                      <input 
+                        id="before-photo-input"
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden"
+                        onChange={(e) => e.target.files && handlePhotoUpload('before', e.target.files[0])}
+                      />
                     </div>
-                  </div>
+                  ) : (
+                    <div className="aspect-square relative rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center">
+                      <div className="text-center">
+                        <Camera className="mx-auto h-12 w-12 text-gray-400" />
+                        <h3 className="mt-2 text-sm font-semibold">Before Photo</h3>
+                        <p className="mt-1 text-sm text-gray-500">Upload your starting point photo</p>
+                        <Button 
+                          className="mt-4" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => document.getElementById('before-photo-input')?.click()}
+                        >
+                          <Plus className="mr-2 h-4 w-4" /> Add Photo
+                        </Button>
+                        <input 
+                          id="before-photo-input"
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden"
+                          onChange={(e) => e.target.files && handlePhotoUpload('before', e.target.files[0])}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-4">
-                  <div className="aspect-square relative rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center">
-                    <div className="text-center">
-                      <Camera className="mx-auto h-12 w-12 text-gray-400" />
-                      <h3 className="mt-2 text-sm font-semibold">After Photo</h3>
-                      <p className="mt-1 text-sm text-gray-500">Upload your current photo</p>
-                      <Button className="mt-4" variant="outline" size="sm">
-                        <Plus className="mr-2 h-4 w-4" /> Add Photo
+                  {photos.after ? (
+                    <div className="aspect-square relative rounded-lg border overflow-hidden">
+                      <img 
+                        src={photos.after} 
+                        alt="After photo" 
+                        className="object-cover w-full h-full"
+                      />
+                      <Button 
+                        className="absolute bottom-4 right-4" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => document.getElementById('after-photo-input')?.click()}
+                      >
+                        Update
                       </Button>
+                      <input 
+                        id="after-photo-input"
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden"
+                        onChange={(e) => e.target.files && handlePhotoUpload('after', e.target.files[0])}
+                      />
                     </div>
-                  </div>
+                  ) : (
+                    <div className="aspect-square relative rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center">
+                      <div className="text-center">
+                        <Camera className="mx-auto h-12 w-12 text-gray-400" />
+                        <h3 className="mt-2 text-sm font-semibold">After Photo</h3>
+                        <p className="mt-1 text-sm text-gray-500">Upload your current photo</p>
+                        <Button 
+                          className="mt-4" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const input = document.getElementById('after-photo-input');
+                            if (input) input.click();
+                          }}
+                        >
+                          <Plus className="mr-2 h-4 w-4" /> Add Photo
+                        </Button>
+                        <input 
+                          id="after-photo-input"
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden"
+                          onChange={(e) => e.target.files && handlePhotoUpload('after', e.target.files[0])}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -255,27 +456,44 @@ export default function ProgressPage() {
 
         <TabsContent value="achievements" className="space-y-4">
           <div className="grid gap-6 md:grid-cols-3">
-            {achievements.map((achievement, index) => (
-              <Card key={index}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <achievement.icon className={`h-8 w-8 ${achievement.color}`} />
-                    <Progress value={achievement.progress} className="w-1/2 h-2" />
-                  </div>
-                  <CardTitle className="mt-4">{achievement.title}</CardTitle>
-                  <CardDescription>{achievement.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button className="w-full" variant="outline">
-                    View Details
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+            {achievements.map((achievement, index) => {
+              // Get the proper icon component
+              let IconComponent;
+              switch(achievement.icon) {
+                case 'TrendingUp':
+                  IconComponent = TrendingUp;
+                  break;
+                case 'Dumbbell':
+                  IconComponent = Dumbbell;
+                  break;
+                case 'Award':
+                  IconComponent = Award;
+                  break;
+                default:
+                  IconComponent = Award;
+              }
+              
+              return (
+                <Card key={index}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <IconComponent className={`h-8 w-8 ${achievement.color}`} />
+                      <Progress value={achievement.progress} className="w-1/2 h-2" />
+                    </div>
+                    <CardTitle className="mt-4">{achievement.title}</CardTitle>
+                    <CardDescription>{achievement.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button className="w-full" variant="outline">
+                      View Details
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </TabsContent>
       </Tabs>
     </div>
   )
 }
-
