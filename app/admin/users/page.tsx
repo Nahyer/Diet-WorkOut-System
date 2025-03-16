@@ -1,10 +1,17 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Search, Filter, UserPlus, MoreHorizontal, Download, Trash2, Mail, Ban, Shield, Activity } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Pagination } from "@/components/common/pagination"
+import { AddUserModal } from "@/components/admin/add-user-modal"
+import { EditUserModal } from "@/components/admin/edit-user-modal"
+import { UserActivityModal } from "@/components/admin/user-activity-modal"
+import { EmailUserModal } from "@/components/admin/email-user-modal"
+import { ChangeRoleModal } from "@/components/admin/change-role-modal"
+import { SuspendUserModal } from "@/components/admin/suspend-user-modal"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,37 +23,260 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { UserProgress } from "@/components/admin/user-progress"
+import { useAuth } from "@/app/contexts/AuthContext"
+import { useToast } from "@/components/ui/use-toast"
 
-// Mock data
-const users = [
-  {
-    id: "U1001",
-    name: "John Doe",
-    email: "john@example.com",
-    role: "Member",
-    status: "active",
-    joinDate: "2024-01-15",
-    lastActive: "2024-02-20",
-    progress: 75,
-    avatar: "/placeholder.svg",
-  },
-  {
-    id: "U1002",
-    name: "Jane Smith",
-    email: "jane@example.com",
-    role: "Premium",
-    status: "active",
-    joinDate: "2024-01-20",
-    lastActive: "2024-02-19",
-    progress: 85,
-    avatar: "/placeholder.svg",
-  },
-  // Add more mock users as needed
-]
+// Define User type based on your backend schema
+type User = {
+  userId: number;
+  fullName: string;
+  email: string;
+  role: string;
+  dateOfBirth: string;
+  gender: string;
+  height: number;
+  weight: number;
+  fitnessGoal: string;
+  experienceLevel: string;
+  preferredWorkoutType: string;
+  activityLevel: string;
+  medicalConditions?: string;
+  dietaryRestrictions?: string;
+  createdAt: string;
+  updatedAt: string;
+  // Calculated fields for display
+  lastActive?: string;
+  status?: string;
+}
+
+// API function to fetch users
+const fetchUsers = async (token: string): Promise<User[]> => {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const response = await fetch(`${API_URL}/api/users`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch users');
+  }
+  
+  return response.json();
+};
+
+// API function to delete a user
+const deleteUser = async (userId: number, token: string): Promise<void> => {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const response = await fetch(`${API_URL}/api/users/${userId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to delete user');
+  }
+};
 
 export default function UserManagement() {
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([])
+  const [users, setUsers] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [paginatedUsers, setPaginatedUsers] = useState<User[]>([]);
+  
+  const { isAdmin, isAuthenticated } = useAuth();
+  const { toast } = useToast();
+  
+  // Calculate stats
+  const userStats = {
+    totalUsers: users.length,
+    activeUsers: users.filter(user => user.status === "active").length,
+    premiumUsers: users.filter(user => user.role === "premium").length,
+    newUsers: users.filter(user => {
+      const createdDate = new Date(user.createdAt);
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      return createdDate >= sevenDaysAgo;
+    }).length,
+  };
+
+  // Load users from API
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        setIsLoading(true);
+        const token = localStorage.getItem("token");
+        
+        if (!token) {
+          throw new Error("No authentication token found");
+        }
+        
+        const userData = await fetchUsers(token);
+        
+        // Process users to add calculated fields
+        const processedUsers = userData.map(user => {
+          // Calculate or mock some fields that might not be in the API
+          // In a real app, these might come from user activity logs or other data
+          return {
+            ...user,
+            lastActive: user.updatedAt ? new Date(user.updatedAt).toISOString().split('T')[0] : 'Never',
+            status: "active", // You might want to determine this based on login history
+          };
+        });
+        
+        setUsers(processedUsers);
+        setFilteredUsers(processedUsers);
+      } catch (error) {
+        console.error("Error loading users:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load users. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    if (isAuthenticated && isAdmin) {
+      loadUsers();
+    }
+  }, [isAuthenticated, isAdmin, toast]);
+
+  // Filter users based on search query and filters
+  useEffect(() => {
+    let result = [...users];
+    
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        user => 
+          user.fullName.toLowerCase().includes(query) || 
+          user.email.toLowerCase().includes(query)
+      );
+    }
+    
+    // Apply status filter
+    if (statusFilter !== "all") {
+      result = result.filter(user => user.status === statusFilter);
+    }
+    
+    // Apply role filter
+    if (roleFilter !== "all") {
+      result = result.filter(user => user.role.toLowerCase() === roleFilter);
+    }
+    
+    // Reset to first page when filters change
+    setCurrentPage(1);
+    setFilteredUsers(result);
+  }, [users, searchQuery, statusFilter, roleFilter]);
+  
+  // Apply pagination
+  useEffect(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    setPaginatedUsers(filteredUsers.slice(startIndex, endIndex));
+  }, [filteredUsers, currentPage, itemsPerPage]);
+
+  // Handle user deletion
+  const handleDeleteUser = async (userId: number) => {
+    try {
+      const token = localStorage.getItem("token");
+      
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+      
+      await deleteUser(userId, token);
+      
+      // Update the users list
+      setUsers(users.filter(user => user.userId !== userId));
+      setSelectedUsers(selectedUsers.filter(id => id !== userId));
+      
+      toast({
+        title: "Success",
+        description: "User deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete user. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle bulk deletion
+  const handleDeleteSelected = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+      
+      // Delete each selected user
+      await Promise.all(selectedUsers.map(userId => deleteUser(userId, token)));
+      
+      // Update the users list
+      setUsers(users.filter(user => !selectedUsers.includes(user.userId)));
+      setSelectedUsers([]);
+      
+      toast({
+        title: "Success",
+        description: `${selectedUsers.length} users deleted successfully`,
+      });
+    } catch (error) {
+      console.error("Error deleting users:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete selected users. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle user selection
+  const toggleUserSelection = (userId: number) => {
+    if (selectedUsers.includes(userId)) {
+      setSelectedUsers(selectedUsers.filter(id => id !== userId));
+    } else {
+      setSelectedUsers([...selectedUsers, userId]);
+    }
+  };
+
+  // Handle role display text formatting
+  const formatRole = (role: string) => {
+    return role.charAt(0).toUpperCase() + role.slice(1);
+  };
+
+  // Handle status badge variant
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'default'; // Changed from 'success' to 'default' as 'success' is not a valid variant
+      case 'inactive':
+        return 'secondary';
+      case 'suspended':
+        return 'destructive';
+      default:
+        return 'outline';
+    }
+  };
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -60,10 +290,25 @@ export default function UserManagement() {
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button className="bg-red-500 hover:bg-red-600">
-            <UserPlus className="mr-2 h-4 w-4" />
-            Add User
-          </Button>
+          <AddUserModal onUserAdded={() => {
+            // Refresh the user list
+            const loadUsers = async () => {
+              try {
+                const token = localStorage.getItem("token");
+                if (token) {
+                  const userData = await fetchUsers(token);
+                  setUsers(userData.map(user => ({
+                    ...user,
+                    lastActive: user.updatedAt ? new Date(user.updatedAt).toISOString().split('T')[0] : 'Never',
+                    status: "active",
+                  })));
+                }
+              } catch (error) {
+                console.error("Error reloading users:", error);
+              }
+            };
+            loadUsers();
+          }} />
         </div>
       </div>
 
@@ -74,9 +319,14 @@ export default function UserManagement() {
             <div className="flex flex-1 items-center gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search users..." className="pl-9" />
+                <Input 
+                  placeholder="Search users..." 
+                  className="pl-9" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
-              <Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
@@ -87,13 +337,13 @@ export default function UserManagement() {
                   <SelectItem value="suspended">Suspended</SelectItem>
                 </SelectContent>
               </Select>
-              <Select>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="member">Member</SelectItem>
+                  <SelectItem value="user">Member</SelectItem>
                   <SelectItem value="premium">Premium</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
@@ -104,7 +354,11 @@ export default function UserManagement() {
                 <Filter className="h-4 w-4" />
               </Button>
               {selectedUsers.length > 0 && (
-                <Button variant="destructive" size="sm">
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={handleDeleteSelected}
+                >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Selected
                 </Button>
@@ -121,78 +375,184 @@ export default function UserManagement() {
           <CardDescription>A list of all users in your application.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="h-12 px-4 text-left align-middle font-medium">User</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Role</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Status</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Progress</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Last Active</th>
-                  <th className="h-12 px-4 text-right align-middle font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user.id} className="border-b">
-                    <td className="p-4">
-                      <div className="flex items-center gap-4">
-                        <Avatar>
-                          <AvatarImage src={user.avatar} />
-                          <AvatarFallback>{user.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">{user.name}</div>
-                          <div className="text-sm text-muted-foreground">{user.email}</div>
-                        </div>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-32">
+              <p>Loading users...</p>
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="h-12 px-4 text-left align-middle font-medium">
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="checkbox" 
+                          className="h-4 w-4 rounded border-gray-300" 
+                          checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
+                          onChange={() => {
+                            if (selectedUsers.length === filteredUsers.length) {
+                              setSelectedUsers([]);
+                            } else {
+                              setSelectedUsers(filteredUsers.map(user => user.userId));
+                            }
+                          }}
+                        />
+                        User
                       </div>
-                    </td>
-                    <td className="p-4">
-                      <Badge variant="outline">{user.role}</Badge>
-                    </td>
-                    <td className="p-4">
-                      <Badge variant={user.status === "active" ? "success" : "secondary"} className="capitalize">
-                        {user.status}
-                      </Badge>
-                    </td>
-                    <td className="p-4">
-                      <UserProgress progress={user.progress} />
-                    </td>
-                    <td className="p-4">
-                      <div className="text-sm">{user.lastActive}</div>
-                    </td>
-                    <td className="p-4 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Actions</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>
-                            <Activity className="mr-2 h-4 w-4" /> View Activity
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Mail className="mr-2 h-4 w-4" /> Send Email
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Shield className="mr-2 h-4 w-4" /> Change Role
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600">
-                            <Ban className="mr-2 h-4 w-4" /> Suspend User
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
+                    </th>
+                    <th className="h-12 px-4 text-left align-middle font-medium">Role</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium">Status</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium">Last Active</th>
+                    <th className="h-12 px-4 text-right align-middle font-medium">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {paginatedUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-4 text-center">
+                        No users found.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedUsers.map((user) => (
+                      <tr key={user.userId} className="border-b">
+                        <td className="p-4">
+                          <div className="flex items-center gap-4">
+                            <input 
+                              type="checkbox" 
+                              className="h-4 w-4 rounded border-gray-300"
+                              checked={selectedUsers.includes(user.userId)}
+                              onChange={() => toggleUserSelection(user.userId)}
+                            />
+                            <Avatar>
+                              <AvatarImage src="/placeholder.svg" />
+                              <AvatarFallback>{user.fullName.slice(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium">{user.fullName}</div>
+                              <div className="text-sm text-muted-foreground">{user.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <Badge variant="outline">{formatRole(user.role)}</Badge>
+                        </td>
+                        <td className="p-4">
+                          <Badge 
+                            variant={getStatusBadgeVariant(user.status || 'active')} 
+                            className="capitalize"
+                          >
+                            {user.status || 'active'}
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-sm">{user.lastActive}</div>
+                        </td>
+                        <td className="p-4 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Actions</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <UserActivityModal 
+                                user={user}
+                                trigger={
+                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                    <Activity className="mr-2 h-4 w-4" /> View Activity
+                                  </DropdownMenuItem>
+                                }
+                              />
+                              <EmailUserModal 
+                                user={user}
+                                trigger={
+                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                    <Mail className="mr-2 h-4 w-4" /> Send Email
+                                  </DropdownMenuItem>
+                                }
+                              />
+                              <ChangeRoleModal 
+                                user={user}
+                                onRoleChanged={() => {
+                                  // Refresh the user list
+                                  const loadUsers = async () => {
+                                    try {
+                                      const token = localStorage.getItem("token");
+                                      if (token) {
+                                        const userData = await fetchUsers(token);
+                                        setUsers(userData.map(user => ({
+                                          ...user,
+                                          lastActive: user.updatedAt ? new Date(user.updatedAt).toISOString().split('T')[0] : 'Never',
+                                          status: "active",
+                                        })));
+                                      }
+                                    } catch (error) {
+                                      console.error("Error reloading users:", error);
+                                    }
+                                  };
+                                  loadUsers();
+                                }}
+                                trigger={
+                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                    <Shield className="mr-2 h-4 w-4" /> Change Role
+                                  </DropdownMenuItem>
+                                }
+                              />
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                className="text-red-600"
+                                onClick={() => handleDeleteUser(user.userId)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete User
+                              </DropdownMenuItem>
+                              <SuspendUserModal 
+                                user={user}
+                                onUserSuspended={() => {
+                                  // Refresh the user list
+                                  const loadUsers = async () => {
+                                    try {
+                                      const token = localStorage.getItem("token");
+                                      if (token) {
+                                        const userData = await fetchUsers(token);
+                                        setUsers(userData.map(user => ({
+                                          ...user,
+                                          lastActive: user.updatedAt ? new Date(user.updatedAt).toISOString().split('T')[0] : 'Never',
+                                          status: "active",
+                                        })));
+                                      }
+                                    } catch (error) {
+                                      console.error("Error reloading users:", error);
+                                    }
+                                  };
+                                  loadUsers();
+                                }}
+                                trigger={
+                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
+                                    <Ban className="mr-2 h-4 w-4" /> Suspend User
+                                  </DropdownMenuItem>
+                                }
+                              />
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+              
+              {/* Pagination */}
+              <Pagination 
+                currentPage={currentPage}
+                totalPages={Math.ceil(filteredUsers.length / itemsPerPage)}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -203,8 +563,10 @@ export default function UserManagement() {
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2,350</div>
-            <p className="text-xs text-muted-foreground">+180 from last month</p>
+            <div className="text-2xl font-bold">{userStats.totalUsers}</div>
+            <p className="text-xs text-muted-foreground">
+              {userStats.newUsers} new users this week
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -212,8 +574,13 @@ export default function UserManagement() {
             <CardTitle className="text-sm font-medium">Active Users</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,890</div>
-            <p className="text-xs text-muted-foreground">80% of total users</p>
+            <div className="text-2xl font-bold">{userStats.activeUsers}</div>
+            <p className="text-xs text-muted-foreground">
+              {userStats.totalUsers > 0 
+                ? `${Math.round((userStats.activeUsers / userStats.totalUsers) * 100)}% of total users` 
+                : '0% of total users'
+              }
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -221,8 +588,13 @@ export default function UserManagement() {
             <CardTitle className="text-sm font-medium">Premium Users</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">890</div>
-            <p className="text-xs text-muted-foreground">38% of total users</p>
+            <div className="text-2xl font-bold">{userStats.premiumUsers}</div>
+            <p className="text-xs text-muted-foreground">
+              {userStats.totalUsers > 0 
+                ? `${Math.round((userStats.premiumUsers / userStats.totalUsers) * 100)}% of total users` 
+                : '0% of total users'
+              }
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -230,7 +602,7 @@ export default function UserManagement() {
             <CardTitle className="text-sm font-medium">New Users</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">245</div>
+            <div className="text-2xl font-bold">{userStats.newUsers}</div>
             <p className="text-xs text-muted-foreground">Last 7 days</p>
           </CardContent>
         </Card>
@@ -238,4 +610,3 @@ export default function UserManagement() {
     </div>
   )
 }
-
