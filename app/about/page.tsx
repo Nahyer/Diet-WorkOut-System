@@ -35,7 +35,7 @@ export default function About() {
       <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-black/60">
           <img
-            src="/placeholder.svg?height=600&width=1200"
+            src="/images/gym-equipment.jpg"
             alt="Gym Equipment"
             className="w-full h-full object-cover mix-blend-overlay"
           />
