@@ -15,18 +15,11 @@ import { Activity } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { User } from "@/app/services/user"
 import { Card, CardContent } from "@/components/ui/card"
+import { activityService, ActivityItem, ActivityTypes } from "@/app/services/activity"
 
 interface UserActivityModalProps {
   user: User;
   trigger?: React.ReactNode;
-}
-
-// Mock activity data - Replace with real API data
-interface ActivityItem {
-  id: string;
-  type: string;
-  description: string;
-  timestamp: string;
 }
 
 export function UserActivityModal({ user, trigger }: UserActivityModalProps) {
@@ -46,51 +39,23 @@ export function UserActivityModal({ user, trigger }: UserActivityModalProps) {
     setIsLoading(true);
     
     try {
-      // In a real implementation, fetch from API
-      // const token = localStorage.getItem("token");
-      // const response = await fetch(`${API_URL}/api/users/${user.userId}/activities`, {
-      //   headers: { Authorization: `Bearer ${token}` }
-      // });
-      // const data = await response.json();
-      // setActivities(data);
-      
-      // Mock data for now
+      // Short delay to simulate API call - can be removed in production
       setTimeout(() => {
-        setActivities([
-          {
-            id: "1",
-            type: "login",
-            description: "User logged in",
-            timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString() // 30 minutes ago
-          },
-          {
-            id: "2",
-            type: "profile_update",
-            description: "User updated profile information",
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() // 2 hours ago
-          },
-          {
-            id: "3",
-            type: "workout_completed",
-            description: "User completed a workout session",
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString() // 5 hours ago
-          },
-          {
-            id: "4",
-            type: "login",
-            description: "User logged in",
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString() // 1 day ago
-          },
-          {
-            id: "5",
-            type: "subscription_updated",
-            description: "User upgraded to premium plan",
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString() // 3 days ago
-          }
-        ]);
+        // Get activities from localStorage
+        const userActivities = activityService.getUserActivities(user.userId);
+        
+        // If no activities found, add a placeholder message
+        if (userActivities.length === 0) {
+          // Add a message to explain no activities are found
+          toast({
+            title: "No Activities",
+            description: "No recent activities found for this user in the last 24 hours.",
+          });
+        }
+        
+        setActivities(userActivities);
         setIsLoading(false);
       }, 500);
-      
     } catch (error) {
       console.error("Error loading user activities:", error);
       toast({
@@ -114,19 +79,47 @@ export function UserActivityModal({ user, trigger }: UserActivityModalProps) {
     }).format(date);
   };
 
+  // Format time ago (e.g., "5 minutes ago")
+  const getTimeAgo = (timestamp: string) => {
+    const now = new Date();
+    const activityTime = new Date(timestamp);
+    const diffMs = now.getTime() - activityTime.getTime();
+    
+    const seconds = Math.floor(diffMs / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) {
+      return `${days} day${days > 1 ? 's' : ''} ago`;
+    } else if (hours > 0) {
+      return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    } else if (minutes > 0) {
+      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    } else {
+      return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
+    }
+  };
+
   // Get activity icon based on type
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case 'login':
+      case ActivityTypes.LOGIN:
         return '🔑';
-      case 'logout':
+      case ActivityTypes.LOGOUT:
         return '🚪';
-      case 'profile_update':
+      case ActivityTypes.PROFILE_UPDATE:
         return '✏️';
-      case 'workout_completed':
+      case ActivityTypes.WORKOUT_COMPLETED:
         return '💪';
-      case 'subscription_updated':
+      case ActivityTypes.NUTRITION_PLAN_COMPLETED:
+        return '🥗';
+      case ActivityTypes.SUBSCRIPTION_UPDATED:
         return '💳';
+      case ActivityTypes.PASSWORD_CHANGED:
+        return '🔒';
+      case ActivityTypes.ROLE_CHANGED:
+        return '🛡️';
       default:
         return '📝';
     }
@@ -146,7 +139,7 @@ export function UserActivityModal({ user, trigger }: UserActivityModalProps) {
         <DialogHeader>
           <DialogTitle>User Activity</DialogTitle>
           <DialogDescription>
-            Recent activity for {user.fullName}
+            Recent activity for {user.fullName} (last 24 hours)
           </DialogDescription>
         </DialogHeader>
         
@@ -157,7 +150,7 @@ export function UserActivityModal({ user, trigger }: UserActivityModalProps) {
             </div>
           ) : activities.length === 0 ? (
             <div className="text-center p-4">
-              <p>No activity recorded for this user.</p>
+              <p>No activity recorded for this user in the last 24 hours.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -169,7 +162,7 @@ export function UserActivityModal({ user, trigger }: UserActivityModalProps) {
                       <div className="flex-1">
                         <div className="font-medium">{activity.description}</div>
                         <div className="text-sm text-muted-foreground">
-                          {formatTimestamp(activity.timestamp)}
+                          {formatTimestamp(activity.timestamp)} ({getTimeAgo(activity.timestamp)})
                         </div>
                       </div>
                     </div>

@@ -4,6 +4,8 @@ import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { authService, RegisterData } from "../services/auth"
+import { activityService, ActivityTypes } from "../services/activity"
+import { userService } from "../services/user" // Import user service for suspension checks
 
 // Update the User type to include both id and userId for flexibility
 type User = {
@@ -26,6 +28,8 @@ type AuthContextType = {
   isAdmin: boolean;
   // Add a helper method to get user ID consistently
   getUserId: () => string | number | null;
+  // Add a method to track user activities
+  trackActivity: (type: string, description: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -59,6 +63,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return user.id !== undefined ? user.id : (user.userId !== undefined ? user.userId : null);
   };
 
+  // Function to track user activities
+  const trackActivity = (type: string, description: string) => {
+    const userId = getUserId();
+    if (userId) {
+      activityService.addActivity({
+        userId,
+        type,
+        description
+      });
+    }
+  };
+
   useEffect(() => {
     // Check if user is stored in localStorage
     const storedUser = localStorage.getItem("user");
@@ -67,8 +83,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (storedUser && storedToken) {
       try {
         const parsedUser = normalizeUserData(JSON.parse(storedUser));
-        setUser(parsedUser);
-        setIsAuthenticated(true);
+        
+        // Check if the user is suspended before setting as authenticated
+        const userId = parsedUser.id || parsedUser.userId;
+        if (userId) {
+          const suspensionCheck = userService.checkSuspension(Number(userId));
+          
+          if (suspensionCheck.isSuspended) {
+            // User is suspended, don't authenticate them
+            setError(suspensionCheck.message || "Your account is temporarily suspended");
+            setUser(null);
+            setIsAuthenticated(false);
+            localStorage.removeItem("user");
+            localStorage.removeItem("token");
+          } else {
+            // User is not suspended, proceed with authentication
+            setUser(parsedUser);
+            setIsAuthenticated(true);
+          }
+        } else {
+          // No userId found, proceed with normal authentication
+          setUser(parsedUser);
+          setIsAuthenticated(true);
+        }
       } catch (err) {
         console.error("Error parsing stored user data:", err);
         // Clear invalid stored data
@@ -90,12 +127,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Normalize user data to ensure consistency
       const normalizedUser = normalizeUserData(response.user);
       
+      // Check if the user is suspended
+      const userId = normalizedUser.id || normalizedUser.userId;
+      if (userId) {
+        const suspensionCheck = userService.checkSuspension(Number(userId));
+        
+        if (suspensionCheck.isSuspended) {
+          // If user is suspended, throw an error with the suspension message
+          throw new Error(suspensionCheck.message || "Your account is temporarily suspended");
+        }
+      }
+      
       // Store user data and token
       localStorage.setItem("user", JSON.stringify(normalizedUser));
       localStorage.setItem("token", response.token);
       
       setUser(normalizedUser);
       setIsAuthenticated(true);
+      
+      // Track login activity
+      if (userId) {
+        activityService.addActivity({
+          userId,
+          type: ActivityTypes.LOGIN,
+          description: `${normalizedUser.fullName} logged in`
+        });
+      }
       
       // Redirect based on user role
       if (normalizedUser.role === "admin") {
@@ -113,6 +170,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    // Track logout activity before removing user data
+    if (user) {
+      const userId = getUserId();
+      if (userId) {
+        activityService.addActivity({
+          userId,
+          type: ActivityTypes.LOGOUT,
+          description: `${user.fullName} logged out`
+        });
+      }
+    }
+    
     authService.logout();
     localStorage.removeItem("user");
     localStorage.removeItem("token");
@@ -150,6 +219,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(normalizedUser);
       setIsAuthenticated(true);
       
+      // Track registration activity
+      const userId = normalizedUser.id || normalizedUser.userId;
+      if (userId) {
+        activityService.addActivity({
+          userId,
+          type: ActivityTypes.LOGIN,
+          description: `${normalizedUser.fullName} created an account and logged in`
+        });
+      }
+      
       // Redirect to dashboard after registration
       router.push("/dashboard");
     } catch (err) {
@@ -175,7 +254,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register, 
         isAuthenticated,
         isAdmin,
-        getUserId
+        getUserId,
+        trackActivity
       }}
     >
       {children}

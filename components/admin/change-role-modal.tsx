@@ -11,27 +11,40 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Shield } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { User, userService } from "@/app/services/user"
+import { User } from "@/app/services/user"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
+import { Shield } from "lucide-react"
 
 interface ChangeRoleModalProps {
   user: User;
-  onRoleChanged: () => void;
+  onRoleChanged?: () => void;
   trigger?: React.ReactNode;
 }
 
 export function ChangeRoleModal({ user, onRoleChanged, trigger }: ChangeRoleModalProps) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [selectedRole, setSelectedRole] = useState(user.role);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<string>(user.role);
 
-  // Handle role change
-  const handleChangeRole = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Set the initial role when the modal opens
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    // Reset to the current user role when opening the modal
+    if (newOpen) {
+      setSelectedRole(user.role);
+    }
+  };
+
+  const handleRoleChange = async () => {
+    // Don't do anything if the role hasn't changed
+    if (selectedRole === user.role) {
+      setOpen(false);
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
@@ -41,21 +54,56 @@ export function ChangeRoleModal({ user, onRoleChanged, trigger }: ChangeRoleModa
         throw new Error("No authentication token found");
       }
       
-      await userService.changeUserRole(user.userId, selectedRole, token);
+      // Make the API call directly to update just the role
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       
-      toast({
-        title: "Success",
-        description: `${user.fullName}'s role has been updated to ${selectedRole}`,
+      console.log(`Updating user ${user.userId} role to ${selectedRole}`);
+      
+      const response = await fetch(`${API_URL}/api/users/${user.userId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          // Include all required fields from the user object
+          fullName: user.fullName,
+          email: user.email,
+          dateOfBirth: user.dateOfBirth,
+          gender: user.gender,
+          height: Number(user.height),
+          weight: Number(user.weight),
+          role: selectedRole,
+          fitnessGoal: user.fitnessGoal,
+          experienceLevel: user.experienceLevel,
+          preferredWorkoutType: user.preferredWorkoutType,
+          activityLevel: user.activityLevel,
+          medicalConditions: user.medicalConditions || '',
+          dietaryRestrictions: user.dietaryRestrictions || ''
+        }),
       });
       
-      setOpen(false);
-      onRoleChanged();
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error("API error:", errorData);
+        throw new Error(errorData?.message || `API error: ${response.status}`);
+      }
       
+      toast({
+        title: "Role Updated",
+        description: `${user.fullName}'s role has been changed to ${selectedRole}`,
+      });
+      
+      if (onRoleChanged) {
+        onRoleChanged();
+      }
+      
+      setOpen(false);
     } catch (error) {
       console.error("Error changing user role:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to change user role",
+        description: "Failed to change user role. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -64,57 +112,64 @@ export function ChangeRoleModal({ user, onRoleChanged, trigger }: ChangeRoleModa
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        {trigger || (
-          <Button size="sm" variant="ghost">
-            <Shield className="h-4 w-4 mr-2" />
-            Change Role
-          </Button>
-        )}
+        {trigger || <Button variant="outline">Change Role</Button>}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[450px]">
         <DialogHeader>
-          <DialogTitle>Change User Role</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            <span>Change User Role</span>
+          </DialogTitle>
           <DialogDescription>
-            Update the role for {user.fullName}
+            Update permissions for {user.fullName} by changing their role
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleChangeRole}>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="role">Select Role</Label>
-              <Select
-                value={selectedRole}
-                onValueChange={setSelectedRole}
-              >
-                <SelectTrigger id="role" className="w-full">
-                  <SelectValue placeholder="Select a role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="premium">Premium</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="pt-2">
-              <p className="text-sm text-muted-foreground">
-                {selectedRole === "user" && "Standard access to basic features."}
-                {selectedRole === "premium" && "Premium access with additional features and benefits."}
-                {selectedRole === "admin" && "Full administrative access to all features and user management."}
-              </p>
-            </div>
+        
+        <div className="py-4">
+          <div className="mb-4">
+            <p className="text-sm text-muted-foreground mb-2">Current role: <span className="font-medium">{user.role.charAt(0).toUpperCase() + user.role.slice(1)}</span></p>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting || selectedRole === user.role}>
-              {isSubmitting ? "Updating..." : "Update Role"}
-            </Button>
-          </DialogFooter>
-        </form>
+          
+          <RadioGroup value={selectedRole} onValueChange={setSelectedRole} className="space-y-3">
+            <div className="flex items-start space-x-2">
+              <RadioGroupItem value="user" id="user" className="mt-1" />
+              <div>
+                <Label htmlFor="user" className="font-medium">User (Basic)</Label>
+                <p className="text-sm text-muted-foreground">Standard access to the platform with basic features</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-2">
+              <RadioGroupItem value="premium" id="premium" className="mt-1" />
+              <div>
+                <Label htmlFor="premium" className="font-medium">Premium User</Label>
+                <p className="text-sm text-muted-foreground">Full access to all workout and nutrition plans</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-2">
+              <RadioGroupItem value="admin" id="admin" className="mt-1" />
+              <div>
+                <Label htmlFor="admin" className="font-medium">Administrator</Label>
+                <p className="text-sm text-muted-foreground">Complete system access and user management capabilities</p>
+              </div>
+            </div>
+          </RadioGroup>
+        </div>
+        
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={handleRoleChange} 
+            disabled={isSubmitting || selectedRole === user.role}
+            className="gap-2"
+          >
+            <Shield className="h-4 w-4" />
+            {isSubmitting ? "Updating..." : "Update Role"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

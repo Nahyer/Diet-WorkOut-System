@@ -16,7 +16,8 @@ import {
   Bell,
   FileText,
   HelpCircle,
-  LogOut
+  LogOut,
+  Apple
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/app/contexts/AuthContext"
@@ -45,15 +46,15 @@ export default function AdminLayout({
       color: "text-violet-500",
     },
     {
-      label: "Workout Plans",
+      label: "Exercise Library",
       icon: Dumbbell,
-      href: "/admin/workouts",
+      href: "/admin/exercises",
       color: "text-red-500",
     },
     {
-      label: "Analytics",
-      icon: LineChart,
-      href: "/admin/analytics",
+      label: "Nutrition Plans",
+      icon: Apple, 
+      href: "/admin/nutrition",
       color: "text-green-500",
     },
     {
