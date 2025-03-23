@@ -25,6 +25,17 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/app/contexts/AuthContext"
 import { useToast } from "@/components/ui/use-toast"
+import { userService } from "@/app/services/user" // Import the updated user service
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 // Define User type based on your backend schema
 type User = {
@@ -49,39 +60,6 @@ type User = {
   status?: string;
 }
 
-// API function to fetch users
-const fetchUsers = async (token: string): Promise<User[]> => {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-  const response = await fetch(`${API_URL}/api/users`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch users');
-  }
-  
-  return response.json();
-};
-
-// API function to delete a user
-const deleteUser = async (userId: number, token: string): Promise<void> => {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-  const response = await fetch(`${API_URL}/api/users/${userId}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
-  
-  if (!response.ok) {
-    throw new Error('Failed to delete user');
-  }
-};
-
 export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
@@ -90,6 +68,15 @@ export default function UserManagement() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Delete confirmation dialog state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<number | null>(null);
+  const [isBulkDelete, setIsBulkDelete] = useState(false);
+  
+  // Success message dialog state
+  const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -113,47 +100,47 @@ export default function UserManagement() {
   };
 
   // Load users from API
-  useEffect(() => {
-    const loadUsers = async () => {
-      try {
-        setIsLoading(true);
-        const token = localStorage.getItem("token");
-        
-        if (!token) {
-          throw new Error("No authentication token found");
-        }
-        
-        const userData = await fetchUsers(token);
-        
-        // Process users to add calculated fields
-        const processedUsers = userData.map(user => {
-          // Calculate or mock some fields that might not be in the API
-          // In a real app, these might come from user activity logs or other data
-          return {
-            ...user,
-            lastActive: user.updatedAt ? new Date(user.updatedAt).toISOString().split('T')[0] : 'Never',
-            status: "active", // You might want to determine this based on login history
-          };
-        });
-        
-        setUsers(processedUsers);
-        setFilteredUsers(processedUsers);
-      } catch (error) {
-        console.error("Error loading users:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load users. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
+  const loadUsers = async () => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem("token");
+      
+      if (!token) {
+        throw new Error("No authentication token found");
       }
-    };
-    
+      
+      // Use the getActiveUsers method to get only non-deleted users
+      const userData = await userService.getActiveUsers(token);
+      
+      // Process users to add calculated fields
+      const processedUsers = userData.map(user => {
+        // Calculate or mock some fields that might not be in the API
+        return {
+          ...user,
+          lastActive: user.updatedAt ? new Date(user.updatedAt).toISOString().split('T')[0] : 'Never',
+          status: "active", // All users from getActiveUsers are active
+        };
+      });
+      
+      setUsers(processedUsers);
+      setFilteredUsers(processedUsers);
+    } catch (error) {
+      console.error("Error loading users:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load users. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (isAuthenticated && isAdmin) {
       loadUsers();
     }
-  }, [isAuthenticated, isAdmin, toast]);
+  }, [isAuthenticated, isAdmin]);
 
   // Filter users based on search query and filters
   useEffect(() => {
@@ -191,60 +178,71 @@ export default function UserManagement() {
     setPaginatedUsers(filteredUsers.slice(startIndex, endIndex));
   }, [filteredUsers, currentPage, itemsPerPage]);
 
-  // Handle user deletion
-  const handleDeleteUser = async (userId: number) => {
+  // Open delete confirmation dialog for a single user
+  const confirmDeleteUser = (userId: number) => {
+    setUserToDelete(userId);
+    setIsBulkDelete(false);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Open delete confirmation dialog for multiple users
+  const confirmDeleteSelected = () => {
+    setIsBulkDelete(true);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Handle user soft deletion
+  const handleDeleteUser = async () => {
     try {
-      const token = localStorage.getItem("token");
-      
-      if (!token) {
-        throw new Error("No authentication token found");
+      if (isBulkDelete) {
+        // Soft delete multiple users
+        await userService.bulkSoftDeleteUsers(selectedUsers);
+        
+        // Update the users list - remove deleted users
+        setUsers(users.filter(user => !selectedUsers.includes(user.userId)));
+        setSelectedUsers([]);
+        
+        // Show success toast with more prominent styling
+        toast({
+          title: "Success",
+          description: `${selectedUsers.length} users deleted successfully`,
+          variant: "success",
+          duration: 3000,
+        });
+      } else if (userToDelete) {
+        // Soft delete a single user
+        await userService.softDeleteUser(userToDelete);
+        
+        // Update the users list - remove the deleted user
+        setUsers(users.filter(user => user.userId !== userToDelete));
+        
+        // Show prominent success toast
+        toast({
+          title: "Success",
+          description: "User deleted successfully",
+          variant: "success",
+          duration: 3000,
+        });
       }
       
-      await deleteUser(userId, token);
+      // Close the confirmation dialog
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
       
-      // Update the users list
-      setUsers(users.filter(user => user.userId !== userId));
-      setSelectedUsers(selectedUsers.filter(id => id !== userId));
+      // Show success dialog with appropriate message
+      if (isBulkDelete) {
+        setSuccessMessage(`${selectedUsers.length} users have been successfully deleted.`);
+      } else {
+        const userName = users.find(u => u.userId === userToDelete)?.fullName || "User";
+        setSuccessMessage(`${userName} has been successfully deleted.`);
+      }
+      setIsSuccessDialogOpen(true);
       
-      toast({
-        title: "Success",
-        description: "User deleted successfully",
-      });
     } catch (error) {
       console.error("Error deleting user:", error);
       toast({
         title: "Error",
-        description: "Failed to delete user. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Handle bulk deletion
-  const handleDeleteSelected = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
-      
-      // Delete each selected user
-      await Promise.all(selectedUsers.map(userId => deleteUser(userId, token)));
-      
-      // Update the users list
-      setUsers(users.filter(user => !selectedUsers.includes(user.userId)));
-      setSelectedUsers([]);
-      
-      toast({
-        title: "Success",
-        description: `${selectedUsers.length} users deleted successfully`,
-      });
-    } catch (error) {
-      console.error("Error deleting users:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete selected users. Please try again.",
+        description: "Failed to delete user(s). Please try again.",
         variant: "destructive",
       });
     }
@@ -268,7 +266,7 @@ export default function UserManagement() {
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'active':
-        return 'default'; // Changed from 'success' to 'default' as 'success' is not a valid variant
+        return 'default';
       case 'inactive':
         return 'secondary';
       case 'suspended':
@@ -280,6 +278,50 @@ export default function UserManagement() {
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {isBulkDelete 
+                ? `This will delete ${selectedUsers.length} selected users. The users will be removed from the list but their data will be preserved in the database.`
+                : "This user will be removed from the list but their data will be preserved in the database."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser} className="bg-red-500 hover:bg-red-600">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Success Message Dialog */}
+      <AlertDialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-green-600">
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Success
+              </div>
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-lg">
+              {successMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction className="bg-green-600 hover:bg-green-700">
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">User Management</h2>
@@ -290,25 +332,7 @@ export default function UserManagement() {
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <AddUserModal onUserAdded={() => {
-            // Refresh the user list
-            const loadUsers = async () => {
-              try {
-                const token = localStorage.getItem("token");
-                if (token) {
-                  const userData = await fetchUsers(token);
-                  setUsers(userData.map(user => ({
-                    ...user,
-                    lastActive: user.updatedAt ? new Date(user.updatedAt).toISOString().split('T')[0] : 'Never',
-                    status: "active",
-                  })));
-                }
-              } catch (error) {
-                console.error("Error reloading users:", error);
-              }
-            };
-            loadUsers();
-          }} />
+          <AddUserModal onUserAdded={loadUsers} />
         </div>
       </div>
 
@@ -357,7 +381,7 @@ export default function UserManagement() {
                 <Button 
                   variant="destructive" 
                   size="sm"
-                  onClick={handleDeleteSelected}
+                  onClick={confirmDeleteSelected}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Selected
@@ -477,25 +501,7 @@ export default function UserManagement() {
                               />
                               <ChangeRoleModal 
                                 user={user}
-                                onRoleChanged={() => {
-                                  // Refresh the user list
-                                  const loadUsers = async () => {
-                                    try {
-                                      const token = localStorage.getItem("token");
-                                      if (token) {
-                                        const userData = await fetchUsers(token);
-                                        setUsers(userData.map(user => ({
-                                          ...user,
-                                          lastActive: user.updatedAt ? new Date(user.updatedAt).toISOString().split('T')[0] : 'Never',
-                                          status: "active",
-                                        })));
-                                      }
-                                    } catch (error) {
-                                      console.error("Error reloading users:", error);
-                                    }
-                                  };
-                                  loadUsers();
-                                }}
+                                onRoleChanged={loadUsers}
                                 trigger={
                                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                     <Shield className="mr-2 h-4 w-4" /> Change Role
@@ -505,31 +511,13 @@ export default function UserManagement() {
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
                                 className="text-red-600"
-                                onClick={() => handleDeleteUser(user.userId)}
+                                onClick={() => confirmDeleteUser(user.userId)}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete User
                               </DropdownMenuItem>
                               <SuspendUserModal 
                                 user={user}
-                                onUserSuspended={() => {
-                                  // Refresh the user list
-                                  const loadUsers = async () => {
-                                    try {
-                                      const token = localStorage.getItem("token");
-                                      if (token) {
-                                        const userData = await fetchUsers(token);
-                                        setUsers(userData.map(user => ({
-                                          ...user,
-                                          lastActive: user.updatedAt ? new Date(user.updatedAt).toISOString().split('T')[0] : 'Never',
-                                          status: "active",
-                                        })));
-                                      }
-                                    } catch (error) {
-                                      console.error("Error reloading users:", error);
-                                    }
-                                  };
-                                  loadUsers();
-                                }}
+                                onUserSuspended={loadUsers}
                                 trigger={
                                   <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
                                     <Ban className="mr-2 h-4 w-4" /> Suspend User
