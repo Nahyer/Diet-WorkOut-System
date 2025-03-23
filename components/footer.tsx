@@ -51,21 +51,6 @@ export default function Footer() {
                   Services
                 </Link>
               </li>
-              <li>
-                <Link href="/workouts" className="hover:text-red-500 transition-colors">
-                  Workouts
-                </Link>
-              </li>
-              <li>
-                <Link href="/nutrition" className="hover:text-red-500 transition-colors">
-                  Nutrition Plans
-                </Link>
-              </li>
-              <li>
-                <Link href="/blog" className="hover:text-red-500 transition-colors">
-                  Blog
-                </Link>
-              </li>
             </ul>
           </div>
 
@@ -75,11 +60,11 @@ export default function Footer() {
             <ul className="space-y-3">
               <li className="flex items-start space-x-3">
                 <MapPin className="h-5 w-5 text-red-500 mt-0.5" />
-                <span>123 Fitness Street, Gym City, SP 12345</span>
+                <span>Fitness Studio,kutus</span>
               </li>
               <li className="flex items-center space-x-3">
                 <Phone className="h-5 w-5 text-red-500" />
-                <span>+1 (234) 567-8900</span>
+                <span>+ (254) 567-8900</span>
               </li>
               <li className="flex items-center space-x-3">
                 <Mail className="h-5 w-5 text-red-500" />

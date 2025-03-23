@@ -2,8 +2,9 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
+import { useRouter } from "next/navigation"
 import {
   MapPin,
   Phone,
@@ -16,28 +17,258 @@ import {
   Instagram,
   Youtube,
   CheckCircle2,
+  AlertCircle,
+  XCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useAuth } from "@/app/contexts/AuthContext"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
+// API service for support tickets and user verification
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+// Support ticket service
+const supportTicketService = {
+  // Find a user by email
+  findUserByEmail: async (email: string) => {
+    try {
+      // Fetch the list of all users (this assumes you have proper security in place on your backend)
+      const response = await fetch(`${API_URL}/api/users`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (!response.ok) {
+        console.error("Failed to fetch users list");
+        return null;
+      }
+      
+      const users = await response.json();
+      
+      // Find user with matching email (case insensitive)
+      const matchingUser = users.find(
+        (user: any) => user.email.toLowerCase() === email.toLowerCase()
+      );
+      
+      return matchingUser || null;
+    } catch (error) {
+      console.error("Error finding user by email:", error);
+      return null;
+    }
+  },
+  
+  // Create a new support ticket
+  createTicket: async (ticketData: any) => {
+    const response = await fetch(`${API_URL}/api/support-tickets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(ticketData)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to create support ticket');
+    }
+
+    return await response.json();
+  }
+};
+
+// Available ticket categories
+const TICKET_CATEGORIES = [
+  { value: "general", label: "General Inquiry" },
+  { value: "account", label: "Account Issues" },
+  { value: "billing", label: "Billing Questions" },
+  { value: "workout", label: "Workout Problems" },
+  { value: "nutrition", label: "Nutrition Plans" },
+  { value: "technical", label: "Technical Support" },
+  { value: "feedback", label: "Feedback & Suggestions" },
+];
 
 export default function Contact() {
+  const { user } = useAuth()
+  const router = useRouter()
+  
   const [isLoading, setIsLoading] = useState(false)
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [showAlert, setShowAlert] = useState(false)
+  const [alertMessage, setAlertMessage] = useState("")
+  const [alertType, setAlertType] = useState<"success" | "error" | "warning">("success")
+  const [showRedirectDialog, setShowRedirectDialog] = useState(false)
+  
+  // Form state
+  const [fullName, setFullName] = useState("")
+  const [email, setEmail] = useState("")
+  const [category, setCategory] = useState("")
+  const [message, setMessage] = useState("")
+  
+  // Set form fields if user is logged in
+  useEffect(() => {
+    if (user) {
+      setFullName(user.fullName)
+      setEmail(user.email)
+    }
+  }, [user])
+
+  const showTemporaryAlert = (message: string, type: "success" | "error" | "warning") => {
+    setAlertMessage(message)
+    setAlertType(type)
+    setShowAlert(true)
+    
+    // Hide alert after 5 seconds
+    setTimeout(() => {
+      setShowAlert(false)
+    }, 5000)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    setIsLoading(false)
-    setIsSuccess(true)
+    setIsCheckingEmail(true)
+    
+    try {
+      // First, try to find the user by email
+      const foundUser = await supportTicketService.findUserByEmail(email)
+      setIsCheckingEmail(false)
+      
+      if (!foundUser) {
+        // Email doesn't exist, show redirect dialog
+        setIsLoading(false)
+        setShowRedirectDialog(true)
+        return
+      }
+      
+      // User exists, proceed with creating ticket
+      const ticketData = {
+        userId: foundUser.id || foundUser.userId,
+        subject: `${category.charAt(0).toUpperCase() + category.slice(1)}: ${fullName}`,
+        message: message,
+        category: category || "general"
+      }
+      
+      // Send the ticket data to API
+      await supportTicketService.createTicket(ticketData)
+      
+      setIsLoading(false)
+      setIsSuccess(true)
+      
+      // Show success notification
+      showTemporaryAlert(
+        "✨ Support ticket created successfully! Our team will review your request and get back to you within 24 hours.",
+        "success"
+      )
+      
+      // Reset form after 3 seconds
+      setTimeout(() => {
+        setIsSuccess(false)
+        setCategory("")
+        setMessage("")
+        if (!user) {
+          setFullName("")
+          setEmail("")
+        }
+      }, 3000)
+      
+    } catch (error) {
+      setIsLoading(false)
+      showTemporaryAlert(
+        "Oops! Something went wrong while creating your ticket. Please try again or contact us directly.",
+        "error"
+      )
+      console.error('Error creating support ticket:', error)
+    }
+  }
+
+  const handleRedirectToRegistration = () => {
+    router.push("/register")
   }
 
   return (
     <div className="min-h-screen">
+      {/* Alert Notification */}
+      {showAlert && (
+        <motion.div 
+          className="fixed top-6 right-6 z-50 max-w-md"
+          initial={{ opacity: 0, x: 50 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 50 }}
+        >
+          <Alert
+            variant={alertType === "success" ? "default" : alertType === "error" ? "destructive" : "default"}
+            className={
+              alertType === "success" 
+                ? "border-green-500 bg-green-50 text-green-800" 
+                : alertType === "warning" 
+                ? "border-yellow-500 bg-yellow-50 text-yellow-800"
+                : "border-red-500 bg-red-50"
+            }
+          >
+            {alertType === "success" ? (
+              <CheckCircle2 className="h-5 w-5" />
+            ) : alertType === "warning" ? (
+              <AlertCircle className="h-5 w-5" />
+            ) : (
+              <XCircle className="h-5 w-5" />
+            )}
+            <AlertTitle className="font-medium">
+              {alertType === "success" ? "Success!" : alertType === "warning" ? "Attention" : "Error"}
+            </AlertTitle>
+            <AlertDescription>
+              {alertMessage}
+            </AlertDescription>
+          </Alert>
+        </motion.div>
+      )}
+      
+      {/* Redirect Dialog */}
+      <AlertDialog open={showRedirectDialog} onOpenChange={setShowRedirectDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Email Not Found</AlertDialogTitle>
+            <AlertDialogDescription>
+              <div className="space-y-4">
+                <p>We couldn't find an account with the email address you entered. To submit a support ticket, you need to create an account first.</p>
+                <div className="bg-amber-50 p-4 rounded-md border border-amber-200 text-amber-800">
+                  <p className="flex items-center font-medium mb-1">
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    Why do I need to register?
+                  </p>
+                  <p className="text-sm">
+                    Having an account allows us to track your support requests, provide personalized assistance, 
+                    and ensure continuity in resolving your issues. Your fitness journey matters to us!
+                  </p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRedirectToRegistration} className="bg-red-500 hover:bg-red-600">
+              Go to Registration
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Hero Section */}
       <section className="relative py-20 bg-gray-900">
         <div className="absolute inset-0 overflow-hidden">
@@ -76,43 +307,55 @@ export default function Contact() {
                   <CardTitle>Send us a Message</CardTitle>
                   <CardDescription>
                     Fill out the form below and we'll get back to you as soon as possible.
+                    <div className="mt-2 text-red-600 font-medium flex items-center">
+                      <AlertCircle className="h-4 w-4 mr-1" />
+                      Your email must be registered in our system to submit a support ticket
+                    </div>
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label htmlFor="firstName" className="text-sm font-medium">
-                          First Name
-                        </label>
-                        <Input id="firstName" placeholder="John" required />
-                      </div>
-                      <div className="space-y-2">
-                        <label htmlFor="lastName" className="text-sm font-medium">
-                          Last Name
-                        </label>
-                        <Input id="lastName" placeholder="Doe" required />
-                      </div>
+                    <div className="space-y-2">
+                      <label htmlFor="fullName" className="text-sm font-medium">
+                        Full Name
+                      </label>
+                      <Input 
+                        id="fullName" 
+                        placeholder="John Doe" 
+                        required 
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        disabled={!!user}
+                      />
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="email" className="text-sm font-medium">
                         Email
                       </label>
-                      <Input id="email" type="email" placeholder="john@example.com" required />
+                      <Input 
+                        id="email" 
+                        type="email" 
+                        placeholder="john@example.com" 
+                        required 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled={!!user}
+                      />
                     </div>
                     <div className="space-y-2">
-                      <label htmlFor="subject" className="text-sm font-medium">
-                        Subject
+                      <label htmlFor="category" className="text-sm font-medium">
+                        Category
                       </label>
-                      <Select>
+                      <Select value={category} onValueChange={setCategory}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a subject" />
+                          <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="general">General Inquiry</SelectItem>
-                          <SelectItem value="support">Technical Support</SelectItem>
-                          <SelectItem value="billing">Billing Question</SelectItem>
-                          <SelectItem value="partnership">Partnership</SelectItem>
+                          {TICKET_CATEGORIES.map(category => (
+                            <SelectItem key={category.value} value={category.value}>
+                              {category.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -120,7 +363,14 @@ export default function Contact() {
                       <label htmlFor="message" className="text-sm font-medium">
                         Message
                       </label>
-                      <Textarea id="message" placeholder="Your message here..." className="min-h-[150px]" required />
+                      <Textarea 
+                        id="message" 
+                        placeholder="Describe your issue or question in detail..." 
+                        className="min-h-[150px]" 
+                        required 
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                      />
                     </div>
                     <Button
                       type="submit"
@@ -130,7 +380,7 @@ export default function Contact() {
                       {isLoading ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending...
+                          {isCheckingEmail ? "Verifying Email..." : "Sending..."}
                         </>
                       ) : isSuccess ? (
                         <>
@@ -140,7 +390,7 @@ export default function Contact() {
                       ) : (
                         <>
                           <Send className="mr-2 h-4 w-4" />
-                          Send Message
+                          Submit Support Ticket
                         </>
                       )}
                     </Button>
@@ -255,4 +505,3 @@ export default function Contact() {
     </div>
   )
 }
-

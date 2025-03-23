@@ -52,89 +52,19 @@ export default function Services() {
               description="Personalized workout plans that adapt to your progress and goals"
             />
             <FeatureCard
-              icon={<Apple className="h-8 w-8 text-red-500" />}
+              icon={<Apple className="h-8 w-8 text-green-500" />}
               title="Nutrition Guidance"
               description="Expert nutrition advice and customized meal plans"
             />
             <FeatureCard
-              icon={<BarChart3 className="h-8 w-8 text-red-500" />}
+              icon={<BarChart3 className="h-8 w-8 text-blue-500" />}
               title="Progress Tracking"
               description="Detailed analytics and progress monitoring"
             />
             <FeatureCard
-              icon={<Users className="h-8 w-8 text-red-500" />}
+              icon={<Users className="h-8 w-8 text-black-500" />}
               title="Community Support"
               description="Join a vibrant community of fitness enthusiasts"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <div className="text-center max-w-3xl mx-auto mb-12">
-            <h2 className="text-3xl font-bold mb-4">Choose Your Plan</h2>
-            <p className="text-gray-600 mb-8">Select the perfect plan for your fitness journey</p>
-            <div className="inline-flex items-center p-1 bg-gray-100 rounded-lg">
-              <button
-                className={`px-4 py-2 rounded-md ${
-                  selectedPlan === "monthly" ? "bg-white shadow-sm" : "text-gray-500 hover:text-gray-900"
-                }`}
-                onClick={() => setSelectedPlan("monthly")}
-              >
-                Monthly
-              </button>
-              <button
-                className={`px-4 py-2 rounded-md ${
-                  selectedPlan === "annual" ? "bg-white shadow-sm" : "text-gray-500 hover:text-gray-900"
-                }`}
-                onClick={() => setSelectedPlan("annual")}
-              >
-                Annual <span className="text-red-500 text-sm">Save 20%</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <PricingCard
-              title="Basic"
-              price={selectedPlan === "monthly" ? "29" : "279"}
-              period={selectedPlan === "monthly" ? "/month" : "/year"}
-              features={["AI Workout Planning", "Basic Progress Tracking", "Community Access", "Email Support"]}
-              buttonText="Get Started"
-              buttonVariant="outline"
-            />
-            <PricingCard
-              title="Premium"
-              price={selectedPlan === "monthly" ? "49" : "469"}
-              period={selectedPlan === "monthly" ? "/month" : "/year"}
-              features={[
-                "Everything in Basic",
-                "Nutrition Guidance",
-                "Advanced Analytics",
-                "Priority Support",
-                "Custom Meal Plans",
-                "Video Consultations",
-              ]}
-              buttonText="Get Premium"
-              buttonVariant="default"
-              highlighted={true}
-            />
-            <PricingCard
-              title="Elite"
-              price={selectedPlan === "monthly" ? "99" : "949"}
-              period={selectedPlan === "monthly" ? "/month" : "/year"}
-              features={[
-                "Everything in Premium",
-                "1-on-1 Coaching",
-                "Personalized Plans",
-                "24/7 Support",
-                "Goal Setting Workshop",
-                "Monthly Reviews",
-              ]}
-              buttonText="Get Elite"
-              buttonVariant="outline"
             />
           </div>
         </div>
