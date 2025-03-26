@@ -71,7 +71,7 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="bg-gradient-to-br from-red-500 to-red-600">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
             <CardTitle className="text-xs font-medium text-white">Current Streak</CardTitle>
@@ -106,15 +106,6 @@ export default function Dashboard() {
             <div className="text-xl font-bold">{data.caloriesToday}</div>
             <p className="text-[10px] text-muted-foreground">
             </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-xs font-medium">Weekly Progress</CardTitle>
-            <Activity className="h-3 w-3 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold">{data.goals.workoutCompleted ? 100 : 60}%</div>
           </CardContent>
         </Card>
       </div>
