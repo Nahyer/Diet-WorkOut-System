@@ -5,8 +5,8 @@ import { Download, Share2, TrendingUp, Ruler, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input"; // Add this import
-import { Label } from "@/components/ui/label"; // Add this import
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AreaChart,
   Area,
@@ -125,6 +125,86 @@ export default function ProgressPage() {
     }
   };
 
+  // Share Progress functionality
+  const handleShareProgress = async () => {
+    const shareText = `
+      My Fitness Progress:
+      - Current Weight: ${summary.currentWeight.toFixed(1)} kg
+      - Total Weight Change: ${Math.abs(summary.totalWeightChange).toFixed(1)} kg
+      - Body Fat: ${summary.bodyFatPercentage.toFixed(1)}%
+      - Monthly Change: ${Math.abs(summary.monthlyWeightChange).toFixed(1)} kg
+    `.trim();
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "My Fitness Progress",
+          text: shareText,
+        });
+        toast({
+          title: "Success",
+          description: "Progress shared successfully!",
+        });
+      } catch (err) {
+        toast({
+          title: "Error",
+          description: "Failed to share progress.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      // Fallback: Copy to clipboard
+      navigator.clipboard.writeText(shareText).then(() => {
+        toast({
+          title: "Copied",
+          description: "Progress summary copied to clipboard!",
+        });
+      }).catch(() => {
+        toast({
+          title: "Error",
+          description: "Failed to copy progress.",
+          variant: "destructive",
+        });
+      });
+    }
+  };
+
+  // Export Report functionality
+  const handleExportReport = () => {
+    const reportContent = `
+      Fitness Progress Report - ${new Date().toLocaleDateString()}
+      
+      Summary:
+      - Current Weight: ${summary.currentWeight.toFixed(1)} kg
+      - Total Weight Change: ${Math.abs(summary.totalWeightChange).toFixed(1)} kg
+      - Monthly Change: ${Math.abs(summary.monthlyWeightChange).toFixed(1)} kg
+      - Body Fat Percentage: ${summary.bodyFatPercentage.toFixed(1)}%
+      
+      Weight History:
+      ${weightData.map((entry) => `${entry.date}: ${entry.weight} kg`).join("\n")}
+      
+      Measurements History:
+      ${measurementsData
+        .map((entry) => `${entry.date}: Chest ${entry.chest} cm, Waist ${entry.waist} cm, Arms ${entry.arms} cm`)
+        .join("\n")}
+    `.trim();
+
+    const blob = new Blob([reportContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Fitness_Progress_Report_${new Date().toISOString().split("T")[0]}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Success",
+      description: "Report exported successfully!",
+    });
+  };
+
   if (loading) return <div className="flex items-center justify-center h-screen">Loading...</div>;
   if (error) return <div className="flex items-center justify-center h-screen text-red-500">{error}</div>;
 
@@ -136,10 +216,10 @@ export default function ProgressPage() {
           <p className="text-muted-foreground">Monitor your fitness journey</p>
         </div>
         <div className="flex gap-4">
-          <Button variant="outline" onClick={() => {}}>
+          <Button variant="outline" onClick={handleShareProgress}>
             <Share2 className="mr-2 h-4 w-4" /> Share Progress
           </Button>
-          <Button variant="outline" onClick={() => {}}>
+          <Button variant="outline" onClick={handleExportReport}>
             <Download className="mr-2 h-4 w-4" /> Export Report
           </Button>
         </div>
@@ -229,9 +309,9 @@ export default function ProgressPage() {
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{summary.totalWeightChange.toFixed(1)} kg</div>
+            <div className="text-2xl font-bold">{Math.abs(summary.totalWeightChange).toFixed(1)} kg</div>
             <p className="text-xs text-muted-foreground">
-              {summary.monthlyWeightChange.toFixed(1)} kg this month
+              {Math.abs(summary.monthlyWeightChange).toFixed(1)} kg this month
             </p>
           </CardContent>
         </Card>

@@ -92,10 +92,9 @@ export default function About() {
       <section className="py-20">
         <div className="container mx-auto px-4">
           <Tabs defaultValue="mission" className="max-w-4xl mx-auto">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="mission">Our Mission</TabsTrigger>
               <TabsTrigger value="approach">Scientific Approach</TabsTrigger>
-              <TabsTrigger value="technology">AI Technology</TabsTrigger>
             </TabsList>
             <TabsContent value="mission" className="mt-8">
               <Card>
@@ -158,36 +157,6 @@ export default function About() {
                 </CardContent>
               </Card>
             </TabsContent>
-            <TabsContent value="technology" className="mt-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle>AI Technology</CardTitle>
-                  <CardDescription>Powered by advanced machine learning</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-gray-600">
-                    Our AI engine analyzes thousands of data points to create perfectly optimized workout and nutrition
-                    plans. The system learns from your progress and adapts in real-time.
-                  </p>
-                  <div className="grid grid-cols-2 gap-4 mt-6">
-                    <div className="flex items-start space-x-3">
-                      <Shield className="h-6 w-6 text-red-500" />
-                      <div>
-                        <h4 className="font-semibold">Smart Analytics</h4>
-                        <p className="text-sm text-gray-600">Real-time adaptation</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <Award className="h-6 w-6 text-red-500" />
-                      <div>
-                        <h4 className="font-semibold">Proven Results</h4>
-                        <p className="text-sm text-gray-600">Data-driven success</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
         </div>
       </section>
@@ -197,27 +166,35 @@ export default function About() {
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">Meet Our Expert Team</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <TeamMemberCard
-              image="/placeholder.svg?height=400&width=400"
-              name="John Doe"
-              role="Head of Fitness"
-              bio="15+ years of experience in personal training and sports science."
-            />
-            <TeamMemberCard
-              image="/placeholder.svg?height=400&width=400"
-              name="Jane Smith"
-              role="Chief Nutritionist"
-              bio="Registered dietitian with expertise in sports nutrition and meal planning."
-            />
-            <TeamMemberCard
-              image="/placeholder.svg?height=400&width=400"
-              name="Mike Johnson"
-              role="AI Technology Lead"
-              bio="PhD in Computer Science, specializing in machine learning and fitness tech."
-            />
+        <TeamMemberCard
+          image="/images/Head-fitness.jpg"
+          name="John Doe"
+          role="Head of Fitness"
+          bio="15+ years of experience in personal training and sports science."
+        />
+        <TeamMemberCard
+          image="/images/chief-nutrition.jpg"
+          name="Jane Smith"
+          role="Chief Nutritionist"
+          bio="Registered dietitian with expertise in sports nutrition and meal planning."
+        />
+        <TeamMemberCard
+          image="/images/AI-tech.jpg"
+          name="Mike Johnson"
+          role="AI Technology Lead"
+          bio="PhD in Computer Science, specializing in machine learning and fitness tech."
+        />
           </div>
         </div>
       </section>
+
+      <style jsx>{`
+        img {
+          object-fit: cover;
+          width: 100%;
+          height: 100%;
+        }
+      `}</style>
 
       {/* CTA Section */}
       <section className="py-20 bg-red-500 text-white">

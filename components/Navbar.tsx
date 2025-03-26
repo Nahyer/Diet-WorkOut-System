@@ -36,12 +36,6 @@ export default function Navbar() {
           <Link href="/contact" className="transition-colors text-white hover:text-red-500">
             Contact
           </Link>
-          <Link href="/dashboard" className="transition-colors text-white hover:text-red-500">
-            Dashboard
-          </Link>
-          <Link href="/admin" className="transition-colors text-white hover:text-red-500">
-            Admin
-          </Link>
         </nav>
 
         {/* Desktop Sign In and Sign Up */}

@@ -1,4 +1,3 @@
-// pages/nutrition.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -12,8 +11,6 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Types for nutrition plan data
@@ -572,15 +569,17 @@ export default function NutritionPage() {
                 </CardContent>
                 <CardFooter className="flex justify-between">
                   <div className="flex items-center space-x-2">
-                    <Switch 
+                    <input
+                      type="checkbox"
                       id={`meal-${meal.mealPlanId}`}
                       checked={meal.consumed}
-                      onCheckedChange={() => markMealAsConsumed(meal.mealPlanId, meal.dayNumber)}
+                      onChange={() => !meal.consumed && markMealAsConsumed(meal.mealPlanId, meal.dayNumber)}
                       disabled={meal.consumed}
+                      className="h-4 w-4 text-green-500 border-gray-300 rounded focus:ring-green-500"
                     />
-                    <Label htmlFor={`meal-${meal.mealPlanId}`} className="text-sm">
+                    <label htmlFor={`meal-${meal.mealPlanId}`} className="text-sm">
                       {meal.consumed ? "Consumed" : "Mark as consumed"}
-                    </Label>
+                    </label>
                   </div>
                   {meal.consumed && (
                     <TooltipProvider>
@@ -764,15 +763,17 @@ export default function NutritionPage() {
                 </CardContent>
                 <CardFooter>
                   <div className="flex items-center space-x-2">
-                    <Switch 
+                    <input
+                      type="checkbox"
                       id={`recipe-meal-${meal.mealPlanId}`}
                       checked={meal.consumed}
-                      onCheckedChange={() => markMealAsConsumed(meal.mealPlanId, meal.dayNumber)}
+                      onChange={() => !meal.consumed && markMealAsConsumed(meal.mealPlanId, meal.dayNumber)}
                       disabled={meal.consumed}
+                      className="h-4 w-4 text-green-500 border-gray-300 rounded focus:ring-green-500"
                     />
-                    <Label htmlFor={`recipe-meal-${meal.mealPlanId}`} className="text-sm">
+                    <label htmlFor={`recipe-meal-${meal.mealPlanId}`} className="text-sm">
                       {meal.consumed ? "Consumed" : "Mark as consumed"}
-                    </Label>
+                    </label>
                   </div>
                 </CardFooter>
               </Card>

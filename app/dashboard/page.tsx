@@ -1,22 +1,38 @@
 // pages/dashboard.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/app/contexts/AuthContext';
-import { 
-  Activity, Dumbbell, Apple, Calendar, TrendingUp, Timer, Flame, Plus, ChevronRight, Award 
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Progress } from '@/components/ui/progress';
+import { useState, useEffect } from "react";
+import { useAuth } from "@/app/contexts/AuthContext";
+import {
+  Activity,
+  Dumbbell,
+  Apple,
+  Calendar,
+  TrendingUp,
+  Timer,
+  Flame,
+  Plus,
+  ChevronRight,
+  Award,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 interface DashboardData {
   user: { fullName: string };
   streak: number;
   todaysWorkout: { name: string; description: string; duration: number; targetMuscleGroups: string } | null;
   caloriesToday: number;
-  weightData: { name: string; value: number }[];
+  weightData: { date: string; weight: number }[]; // Updated to match Progress Tracking
   goals: {
     calories: number;
     proteinGrams: number;
@@ -30,27 +46,27 @@ export default function Dashboard() {
   const { user, getUserId, isAuthenticated } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const firstName = user?.fullName ? user.fullName.split(' ')[0] : 'User';
+  const firstName = user?.fullName ? user.fullName.split(" ")[0] : "User";
 
   useEffect(() => {
     async function fetchDashboardData() {
       if (!isAuthenticated || !getUserId()) return;
 
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem("token");
         const response = await fetch(`http://localhost:8000/api/dashboard/${getUserId()}`, {
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
         });
 
-        if (!response.ok) throw new Error('Failed to fetch dashboard data');
-        
+        if (!response.ok) throw new Error("Failed to fetch dashboard data");
+
         const dashboardData: DashboardData = await response.json();
         setData(dashboardData);
       } catch (error) {
-        console.error('Error fetching dashboard:', error);
+        console.error("Error fetching dashboard:", error);
       } finally {
         setLoading(false);
       }
@@ -88,12 +104,12 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold break-words">
-              {data.todaysWorkout?.name || 'Rest Day'}
+              {data.todaysWorkout?.name || "Rest Day"}
             </div>
             <p className="text-[10px] text-muted-foreground mt-1">
-              {data.todaysWorkout 
+              {data.todaysWorkout
                 ? `${data.todaysWorkout.targetMuscleGroups} - ${data.todaysWorkout.duration} mins`
-                : 'No workout scheduled'}
+                : "No workout scheduled"}
             </p>
           </CardContent>
         </Card>
@@ -104,8 +120,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold">{data.caloriesToday}</div>
-            <p className="text-[10px] text-muted-foreground">
-            </p>
+            <p className="text-[10px] text-muted-foreground"></p>
           </CardContent>
         </Card>
       </div>
@@ -119,10 +134,16 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height={350}>
               <AreaChart data={data.weightData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
+                <XAxis dataKey="date" /> {/* Updated to use full date */}
                 <YAxis />
                 <Tooltip />
-                <Area type="monotone" dataKey="value" stroke="#ef4444" fill="#ef4444" fillOpacity={0.2} />
+                <Area
+                  type="monotone"
+                  dataKey="weight" // Updated to match Progress Tracking
+                  stroke="#ef4444"
+                  fill="#ef4444"
+                  fillOpacity={0.2}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -139,9 +160,9 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm font-medium">Workout Focus</p>
                 <p className="text-sm text-muted-foreground">
-                  {data.todaysWorkout 
+                  {data.todaysWorkout
                     ? data.todaysWorkout.targetMuscleGroups
-                    : 'Rest & Recovery'}
+                    : "Rest & Recovery"}
                 </p>
               </div>
             </div>
@@ -150,9 +171,9 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm font-medium">Nutrition Goal</p>
                 <p className="text-sm text-muted-foreground">
-                  {data.goals.calories 
+                  {data.goals.calories
                     ? `Reach ${data.goals.calories} calories`
-                    : 'Maintain balanced intake'}
+                    : "Maintain balanced intake"}
                 </p>
               </div>
             </div>
@@ -161,16 +182,15 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm font-medium">Activity Time</p>
                 <p className="text-sm text-muted-foreground">
-                  {data.todaysWorkout 
+                  {data.todaysWorkout
                     ? `${data.todaysWorkout.duration} minutes`
-                    : 'Active recovery day'}
+                    : "Active recovery day"}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
-      {/* Rest of your component */}
     </div>
   );
 }
