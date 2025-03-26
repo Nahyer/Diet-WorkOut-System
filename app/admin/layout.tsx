@@ -64,24 +64,6 @@ export default function AdminLayout({
       color: "text-yellow-500",
     },
     {
-      label: "Messages",
-      icon: MessageSquare,
-      href: "/admin/messages",
-      color: "text-pink-500",
-    },
-    {
-      label: "Notifications",
-      icon: Bell,
-      href: "/admin/notifications",
-      color: "text-orange-500",
-    },
-    {
-      label: "Support",
-      icon: HelpCircle,
-      href: "/admin/support",
-      color: "text-blue-500",
-    },
-    {
       label: "Settings",
       icon: Settings,
       href: "/admin/settings",
