@@ -1,20 +1,17 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { Plus, Search, Apple, Droplets, Coffee, Sun, Moon, UtensilsCrossed, Download, List, Save, Check, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Progress } from "@/components/ui/progress"
-import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from "recharts"
-import { useAuth } from "@/app/contexts/AuthContext"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useState, useEffect } from "react";
+import { Plus, Search, Apple, Droplets, Coffee, Sun, Moon, UtensilsCrossed, Download, List, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { useAuth } from "@/app/contexts/AuthContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Types for nutrition plan data
 interface MealPlan {
@@ -29,7 +26,7 @@ interface MealPlan {
   carbs: number;
   fat: number;
   recipe: string;
-  consumed?: boolean; // Track if meal has been consumed
+  consumed?: boolean;
 }
 
 interface NutritionPlan {
@@ -53,8 +50,10 @@ interface WaterIntakeRecord {
   amount: number;
 }
 
-interface ConsumedMeals {
-  [key: string]: boolean; // Format: "mealPlanId-dayNumber"
+interface ConsumedMeal {
+  mealPlanId: number;
+  dayNumber: number;
+  consumedAt: string;
 }
 
 export default function NutritionPage() {
@@ -62,16 +61,16 @@ export default function NutritionPage() {
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [waterIntakeRecords, setWaterIntakeRecords] = useState<WaterIntakeRecord[]>([]);
+  const [consumedMeals, setConsumedMeals] = useState<ConsumedMeal[]>([]);
   const [selectedDay, setSelectedDay] = useState(1);
   const [showShoppingList, setShowShoppingList] = useState(false);
   const [shoppingItems, setShoppingItems] = useState<string[]>([]);
   const [newItem, setNewItem] = useState("");
-  const [consumedMeals, setConsumedMeals] = useState<ConsumedMeals>({});
   const waterGoal = 2500;
 
-  // Get the user's nutrition plan on component mount
+  // Fetch nutrition plan and consumed meals on component mount
   useEffect(() => {
-    const fetchNutritionPlan = async () => {
+    const fetchNutritionData = async () => {
       try {
         setLoading(true);
         const userId = getUserId();
@@ -82,18 +81,23 @@ export default function NutritionPage() {
           return;
         }
 
-        const response = await fetch(`http://localhost:8000/api/nutrition-plans?userId=${userId}`);
-        if (!response.ok) {
-          throw new Error(`Error fetching nutrition plan: ${response.status}`);
+        // Fetch nutrition plan
+        const planResponse = await fetch(`http://localhost:8000/api/nutrition-plans?userId=${userId}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        if (!planResponse.ok) {
+          throw new Error(`Error fetching nutrition plan: ${planResponse.status}`);
         }
 
-        const data = await response.json();
+        const planData = await planResponse.json();
         
-        if (data && data.length > 0) {
-          setNutritionPlan(data[0]);
+        if (planData && planData.length > 0) {
+          setNutritionPlan(planData[0]);
           
-          // Initialize water intake records for each day with proper type casting
-          const days = new Set(data[0].mealPlans.map((meal: MealPlan) => meal.dayNumber));
+          // Initialize water intake records for each day
+          const days = new Set(planData[0].mealPlans.map((meal: MealPlan) => meal.dayNumber));
           const initialWaterIntakes: WaterIntakeRecord[] = Array.from(days).map(day => ({
             dayNumber: Number(day),
             amount: 0
@@ -102,14 +106,35 @@ export default function NutritionPage() {
         } else {
           console.log("No nutrition plan found for user");
         }
+
+        // Fetch consumed meals for the week
+        const today = new Date();
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay()); // Start of the week (Sunday)
+        startOfWeek.setHours(0, 0, 0, 0);
+        const endOfWeek = new Date(today);
+        endOfWeek.setDate(today.getDate() + (6 - today.getDay())); // End of the week (Saturday)
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        const consumedResponse = await fetch(`http://localhost:8000/api/meal-consumption?userId=${userId}&startDate=${startOfWeek.toISOString()}&endDate=${endOfWeek.toISOString()}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        if (!consumedResponse.ok) {
+          throw new Error(`Error fetching consumed meals: ${consumedResponse.status}`);
+        }
+
+        const consumedData = await consumedResponse.json();
+        setConsumedMeals(consumedData);
       } catch (error) {
-        console.error("Failed to fetch nutrition plan:", error);
+        console.error("Failed to fetch nutrition data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchNutritionPlan();
+    fetchNutritionData();
     
     // Initialize shopping list from localStorage if available
     const savedItems = localStorage.getItem('shoppingList');
@@ -121,28 +146,12 @@ export default function NutritionPage() {
         setShoppingItems([]);
       }
     }
-
-    // Load consumed meals from localStorage
-    const savedConsumedMeals = localStorage.getItem('consumedMeals');
-    if (savedConsumedMeals) {
-      try {
-        setConsumedMeals(JSON.parse(savedConsumedMeals));
-      } catch (e) {
-        console.error("Error parsing consumed meals from localStorage:", e);
-        setConsumedMeals({});
-      }
-    }
   }, [getUserId]);
 
   // Save shopping list to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('shoppingList', JSON.stringify(shoppingItems));
   }, [shoppingItems]);
-
-  // Save consumed meals to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('consumedMeals', JSON.stringify(consumedMeals));
-  }, [consumedMeals]);
 
   // Format the goal text for display
   const formatGoalText = (goal: string) => {
@@ -155,7 +164,7 @@ export default function NutritionPage() {
   // Get array of unique day numbers from meal plans
   const getAvailableDays = () => {
     if (!nutritionPlan?.mealPlans || nutritionPlan.mealPlans.length === 0) {
-      return [1, 2, 3, 4, 5, 6, 7]; // Default to week view
+      return [1, 2, 3, 4, 5, 6, 7];
     }
 
     const days = new Set(nutritionPlan.mealPlans.map(meal => meal.dayNumber));
@@ -187,17 +196,35 @@ export default function NutritionPage() {
 
   // Check if a meal has been consumed
   const isMealConsumed = (mealPlanId: number, dayNumber: number): boolean => {
-    const key = `${mealPlanId}-${dayNumber}`;
-    return consumedMeals[key] || false;
+    return consumedMeals.some(meal => 
+      meal.mealPlanId === mealPlanId && 
+      meal.dayNumber === dayNumber &&
+      new Date(meal.consumedAt).toISOString().split('T')[0] === new Date().toISOString().split('T')[0]
+    );
   };
 
-  // Toggle meal consumed status
-  const toggleMealConsumed = (mealPlanId: number, dayNumber: number) => {
-    const key = `${mealPlanId}-${dayNumber}`;
-    setConsumedMeals(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+  // Mark a meal as consumed
+  const markMealAsConsumed = async (mealPlanId: number, dayNumber: number) => {
+    const userId = getUserId();
+    if (!userId) return;
+
+    try {
+      const response = await fetch('http://localhost:8000/api/meals/consume', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ userId, mealPlanId }),
+      });
+
+      if (!response.ok) throw new Error('Failed to mark meal as consumed');
+      
+      const { consumption } = await response.json();
+      setConsumedMeals(prev => [...prev, { mealPlanId, dayNumber, consumedAt: consumption.consumedAt }]);
+    } catch (error) {
+      console.error('Error marking meal as consumed:', error);
+    }
   };
 
   // Calculate total consumed nutrition for the day based on consumed meals
@@ -231,7 +258,6 @@ export default function NutritionPage() {
   const prepareDayMacroData = (meals: MealPlan[]) => {
     const consumed = calculateDayConsumption(meals);
     
-    // Calculate the daily target percentages from the nutrition plan
     const totalDailyTarget = nutritionPlan ? 
       nutritionPlan.proteinGrams + nutritionPlan.carbsGrams + nutritionPlan.fatGrams : 0;
       
@@ -241,7 +267,6 @@ export default function NutritionPage() {
       fat: nutritionPlan ? Math.round((nutritionPlan.fatGrams / totalDailyTarget) * 100) : 0
     };
     
-    // Calculate actual consumed macro percentages
     const totalConsumed = consumed.protein + consumed.carbs + consumed.fat;
     
     if (totalConsumed === 0) return [];
@@ -314,7 +339,6 @@ export default function NutritionPage() {
 
   // Generate and download shopping list as text
   const downloadShoppingList = () => {
-    // Create shopping list content
     const listDate = new Date().toLocaleDateString();
     let content = `Shopping List - ${listDate}\n\n`;
     
@@ -322,18 +346,15 @@ export default function NutritionPage() {
       content += `□ ${item}\n`;
     });
     
-    // Create a blob with the content
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     
-    // Create a temporary link and trigger download
     const link = document.createElement('a');
     link.href = url;
     link.download = 'shopping-list.txt';
     document.body.appendChild(link);
     link.click();
     
-    // Clean up
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
@@ -358,18 +379,18 @@ export default function NutritionPage() {
     switch(mealTime.toLowerCase()) {
       case 'breakfast':
         return <Coffee className="h-5 w-5 text-orange-500" />;
+      case 'snack':
+        return <Apple className="h-5 w-5 text-green-500" />;
       case 'lunch':
         return <Sun className="h-5 w-5 text-yellow-500" />;
       case 'dinner':
         return <Moon className="h-5 w-5 text-blue-500" />;
-      case 'snack':
-        return <Apple className="h-5 w-5 text-green-500" />;
       default:
         return <UtensilsCrossed className="h-5 w-5 text-gray-500" />;
     }
   };
 
-  // Format meal time for display (capitalize first letter)
+  // Format meal time for display
   const formatMealTime = (mealTime: string) => {
     return mealTime.charAt(0).toUpperCase() + mealTime.slice(1);
   };
@@ -380,7 +401,6 @@ export default function NutritionPage() {
   const dayMacroData = prepareDayMacroData(selectedDayMeals);
   const currentWaterIntake = getCurrentWaterIntake();
 
-  // Calculate remaining nutrition values for selected day
   const remaining = nutritionPlan ? {
     calories: nutritionPlan.dailyCalories - consumed.calories,
     protein: nutritionPlan.proteinGrams - consumed.protein,
@@ -388,7 +408,6 @@ export default function NutritionPage() {
     fat: nutritionPlan.fatGrams - consumed.fat
   } : { calories: 0, protein: 0, carbs: 0, fat: 0 };
 
-  // Calculate progress percentages
   const caloriesProgress = nutritionPlan 
     ? Math.min(100, (consumed.calories / nutritionPlan.dailyCalories) * 100)
     : 0;
@@ -450,7 +469,6 @@ export default function NutritionPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Calories Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Calories</CardTitle>
@@ -466,7 +484,6 @@ export default function NutritionPage() {
           </CardContent>
         </Card>
 
-        {/* Water Intake Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Water Intake</CardTitle>
@@ -493,7 +510,6 @@ export default function NutritionPage() {
           </CardContent>
         </Card>
 
-        {/* Protein Intake Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Protein Intake</CardTitle>
@@ -510,7 +526,6 @@ export default function NutritionPage() {
         </Card>
       </div>
 
-      {/* Day selection */}
       <div className="flex justify-center space-x-2 mb-4">
         {availableDays.map((day) => (
           <Button
@@ -554,14 +569,17 @@ export default function NutritionPage() {
                 </CardContent>
                 <CardFooter className="flex justify-between">
                   <div className="flex items-center space-x-2">
-                    <Switch 
+                    <input
+                      type="checkbox"
                       id={`meal-${meal.mealPlanId}`}
                       checked={meal.consumed}
-                      onCheckedChange={() => toggleMealConsumed(meal.mealPlanId, meal.dayNumber)}
+                      onChange={() => !meal.consumed && markMealAsConsumed(meal.mealPlanId, meal.dayNumber)}
+                      disabled={meal.consumed}
+                      className="h-4 w-4 text-green-500 border-gray-300 rounded focus:ring-green-500"
                     />
-                    <Label htmlFor={`meal-${meal.mealPlanId}`} className="text-sm">
+                    <label htmlFor={`meal-${meal.mealPlanId}`} className="text-sm">
                       {meal.consumed ? "Consumed" : "Mark as consumed"}
-                    </Label>
+                    </label>
                   </div>
                   {meal.consumed && (
                     <TooltipProvider>
@@ -731,7 +749,7 @@ export default function NutritionPage() {
                     </div>
                     
                     <div>
-                    <h4 className="font-semibold mb-1">Nutrition</h4>
+                      <h4 className="font-semibold mb-1">Nutrition</h4>
                       <p className="text-sm">
                         {meal.calories} calories • {meal.protein}g protein • {meal.carbs}g carbs • {meal.fat}g fat
                       </p>
@@ -745,14 +763,17 @@ export default function NutritionPage() {
                 </CardContent>
                 <CardFooter>
                   <div className="flex items-center space-x-2">
-                    <Switch 
+                    <input
+                      type="checkbox"
                       id={`recipe-meal-${meal.mealPlanId}`}
                       checked={meal.consumed}
-                      onCheckedChange={() => toggleMealConsumed(meal.mealPlanId, meal.dayNumber)}
+                      onChange={() => !meal.consumed && markMealAsConsumed(meal.mealPlanId, meal.dayNumber)}
+                      disabled={meal.consumed}
+                      className="h-4 w-4 text-green-500 border-gray-300 rounded focus:ring-green-500"
                     />
-                    <Label htmlFor={`recipe-meal-${meal.mealPlanId}`} className="text-sm">
+                    <label htmlFor={`recipe-meal-${meal.mealPlanId}`} className="text-sm">
                       {meal.consumed ? "Consumed" : "Mark as consumed"}
-                    </Label>
+                    </label>
                   </div>
                 </CardFooter>
               </Card>
@@ -761,7 +782,6 @@ export default function NutritionPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Shopping List Dialog */}
       <Dialog open={showShoppingList} onOpenChange={setShowShoppingList}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -797,7 +817,7 @@ export default function NutritionPage() {
                       onClick={() => removeShoppingItem(index)}
                       className="h-8 px-2"
                     >
-                      &times;
+                      ×
                     </Button>
                   </div>
                 ))}
