@@ -16,6 +16,7 @@ export default function Register() {
   const [step, setStep] = React.useState(1)
   const [isLoading, setIsLoading] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState("")
+  const [passwordError, setPasswordError] = React.useState("")
   const router = useRouter()
   const { register } = useAuth()
   
@@ -25,6 +26,7 @@ export default function Register() {
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
     height: "",
     weight: "",
     dateOfBirth: "",
@@ -38,29 +40,64 @@ export default function Register() {
     dietaryRestrictions: "",
   })
   
+  const validatePasswords = () => {
+    if (formData.confirmPassword && formData.password !== formData.confirmPassword) {
+      setPasswordError("Passwords do not match");
+      return false;
+    }
+    setPasswordError("");
+    return true;
+  }
+  
   const updateFormData = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    
+    if (field === "password" || field === "confirmPassword") {
+      if (field === "confirmPassword" && value) {
+        if (formData.password !== value) {
+          setPasswordError("Passwords do not match");
+        } else {
+          setPasswordError("");
+        }
+      } else if (field === "password") {
+        if (formData.confirmPassword && formData.confirmPassword !== value) {
+          setPasswordError("Passwords do not match");
+        } else {
+          setPasswordError("");
+        }
+      }
+    }
   }
   
   const handleNext = () => {
+    if (step === 1) {
+      const passwordsMatch = validatePasswords();
+      if (!passwordsMatch) {
+        return;
+      }
+    }
     if (step < totalSteps) {
-      setStep(step + 1)
+      setStep(step + 1);
     }
   }
   
   const handleBack = () => {
     if (step > 1) {
-      setStep(step - 1)
+      setStep(step - 1);
     }
   }
   
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setErrorMessage("")
+    e.preventDefault();
+    const passwordsMatch = validatePasswords();
+    if (!passwordsMatch) {
+      return;
+    }
+    
+    setIsLoading(true);
+    setErrorMessage("");
     
     try {
-      // Map form data to backend expected format
       await register(
         formData.name, 
         formData.email, 
@@ -77,17 +114,20 @@ export default function Register() {
           medicalConditions: formData.medicalConditions,
           dietaryRestrictions: formData.dietaryRestrictions
         }
-      )
+      );
       
-      router.push("/dashboard")
+      router.push("/dashboard");
     } catch (err) {
-      console.error("Registration failed:", err)
-      setErrorMessage(err instanceof Error ? err.message : "Registration failed")
+      console.error("Registration failed:", err);
+      setErrorMessage(err instanceof Error ? err.message : "Registration failed");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
   
+  // Check if passwords match for displaying the green checkmark
+  const passwordsMatch = formData.password && formData.confirmPassword && formData.password === formData.confirmPassword;
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
@@ -99,7 +139,6 @@ export default function Register() {
         </CardHeader>
         <CardContent>
           <div className="relative">
-            {/* Progress bar */}
             <div className="absolute top-0 left-0 right-0 h-2 bg-gray-100 rounded-full">
               <div
                 className="h-full bg-red-500 rounded-full transition-all duration-300"
@@ -147,6 +186,25 @@ export default function Register() {
                       placeholder="Create a password"
                       value={formData.password}
                       onChange={(e) => updateFormData("password", e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    {/* Display error message or checkmark above the Confirm Password field */}
+                    {passwordError ? (
+                      <div className="text-red-700 text-sm">{passwordError}</div>
+                    ) : passwordsMatch ? (
+                      <div className="text-green-600 text-sm flex items-center">
+                        <Check className="h-4 w-4 mr-1" /> Passwords match
+                      </div>
+                    ) : null}
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="Confirm your password"
+                      value={formData.confirmPassword}
+                      onChange={(e) => updateFormData("confirmPassword", e.target.value)}
                       required
                     />
                   </div>
@@ -317,7 +375,7 @@ export default function Register() {
                 </Button>
                 
                 {step === totalSteps ? (
-                  <Button type="submit" className="w-24 bg-red-500 hover:bg-red-600" disabled={isLoading}>
+                  <Button type="submit" className="w-24 bg-red-500 hover:bg-red-600" disabled={isLoading || !!passwordError}>
                     {isLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
@@ -331,6 +389,7 @@ export default function Register() {
                     type="button" 
                     onClick={handleNext} 
                     className="w-24 bg-red-500 hover:bg-red-600"
+                    disabled={step === 1 && !!passwordError}
                   >
                     Next <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
