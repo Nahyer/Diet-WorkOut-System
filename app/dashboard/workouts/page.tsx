@@ -145,69 +145,56 @@ export default function WorkoutsPage() {
     return () => clearInterval(interval);
   }, [isTimerRunning]);
 
-  // Fetch user workout plans - FIXED to depend on authLoading and isAuthenticated
+  // Fetch user workout plans
   useEffect(() => {
-    // Only fetch data after authentication is complete and user is authenticated
-    if (authLoading || !isAuthenticated) {
-      return;
-    }
-    
+    if (authLoading || !isAuthenticated) return;
+
     const loadWorkoutData = async () => {
       try {
         setLoading(true);
         setError(null);
-        
-        // Handle both 'id' and 'userId' property names:
-        let userId = null;
-        
-        if (user?.id !== undefined) {
-          userId = user.id;
-        } else if (user?.userId !== undefined) {
-          userId = user.userId;
+
+        let userId = user?.id ?? user?.userId;
+        if (!userId) {
+          setError("User ID not available. Please log in again.");
+          setLoading(false);
+          return;
         }
-        
+
         console.log("Auth state:", { 
           isAuthenticated, 
           userId: userId, 
           userObject: user,
           userIdType: userId !== null ? typeof userId : 'null'
         });
-        
-        if (!userId) {
-          setError("User ID not available. Please log in again.");
-          setLoading(false);
-          return;
-        }
-        
-        // Fetch workout plans for the current user
+
         const plans = await fetchUserWorkoutPlan(userId);
         console.log(`Received ${plans.length} workout plans`);
         setWorkoutPlans(plans);
-        
+
         if (plans.length > 0) {
-          // Set the most recent plan as active
-          const mostRecentPlan = plans.reduce((latest, current) => 
+          const mostRecentPlan = plans.reduce((latest, current) =>
             new Date(current.updatedAt) > new Date(latest.updatedAt) ? current : latest
           );
           console.log(`Selected most recent plan: ${mostRecentPlan.name}`);
           setActivePlan(mostRecentPlan);
-          
-          // Generate complete calendar events for all weeks in the plan
           generateCalendarEvents(mostRecentPlan);
-          
-          // Find today's session
+
           const today = new Date();
-          const dayOfWeek = today.getDay() || 7; // Convert Sunday from 0 to 7
+          const dayOfWeek = today.getDay() || 7; // Convert Sunday (0) to 7
           console.log(`Today is day ${dayOfWeek} of the week`);
           const todaySession = mostRecentPlan.sessions.find(s => s.dayNumber === dayOfWeek);
-          
+
           if (todaySession) {
             console.log(`Found today's session: ${todaySession.name}`);
             setSelectedSession(todaySession);
+            setHighlightedDate(today);
+            setCalendarDate(today);
           } else if (mostRecentPlan.sessions.length > 0) {
-            // If no session for today, select the first one
             console.log(`No session for today, selecting first session: ${mostRecentPlan.sessions[0].name}`);
             setSelectedSession(mostRecentPlan.sessions[0]);
+            setHighlightedDate(today);
+            setCalendarDate(today);
           }
         } else {
           console.log("No workout plans found for this user");
@@ -219,29 +206,27 @@ export default function WorkoutsPage() {
         setLoading(false);
       }
     };
-    
+
     loadWorkoutData();
   }, [user, isAuthenticated, authLoading]);
 
   // Generate calendar events for the full workout plan duration
   const generateCalendarEvents = (plan: WorkoutPlan) => {
     const events: CalendarEvent[] = [];
-    const startDate = new Date(); // Starting from today
-    
-    // Calculate total number of days in the plan (weeks * 7)
+    const today = new Date();
+    const todayDayOfWeek = today.getDay() || 7; // Convert Sunday (0) to 7
+
     const totalDays = plan.durationWeeks * 7;
-    
-    // Create recurring events for each session repeated throughout the plan
+
     for (let week = 0; week < plan.durationWeeks; week++) {
       plan.sessions.forEach(session => {
-        if (session.dayNumber > 0) { // Skip any session with day number 0 or less
-          // For each week, calculate the date based on the day number
-          const sessionDate = new Date(startDate);
-          sessionDate.setDate(startDate.getDate() + (week * 7) + (session.dayNumber - 1));
-          
-          // Create event - make it an all-day event for day/agenda views
+        if (session.dayNumber > 0) {
+          const sessionDate = new Date(today);
+          const dayOffset = (session.dayNumber - todayDayOfWeek + 7) % 7;
+          sessionDate.setDate(today.getDate() + (week * 7) + dayOffset);
+
           events.push({
-            id: session.sessionId + (week * 100), // Unique ID for each event occurrence
+            id: session.sessionId + (week * 100),
             title: `${session.name} (${session.duration} min)`,
             start: new Date(sessionDate),
             end: new Date(sessionDate),
@@ -251,7 +236,7 @@ export default function WorkoutsPage() {
         }
       });
     }
-    
+
     console.log(`Generated ${events.length} calendar events for ${plan.durationWeeks} weeks`);
     setCalendarEvents(events);
   };
@@ -259,7 +244,6 @@ export default function WorkoutsPage() {
   // Handle calendar event selection
   const handleSelectEvent = (event: CalendarEvent) => {
     setSelectedSession(event.resource);
-    // When a user selects an event, highlight that date
     setHighlightedDate(new Date(event.start));
   };
 
@@ -336,6 +320,15 @@ export default function WorkoutsPage() {
     const today = new Date();
     setHighlightedDate(today);
     setCalendarDate(today);
+
+    // Re-select today's session when navigating to today
+    if (activePlan) {
+      const dayOfWeek = today.getDay() || 7;
+      const todaySession = activePlan.sessions.find(s => s.dayNumber === dayOfWeek);
+      if (todaySession) {
+        setSelectedSession(todaySession);
+      }
+    }
   };
 
   // Get vibrant color for each workout day
@@ -350,27 +343,24 @@ export default function WorkoutsPage() {
       '#00BCD4', // Cyan
     ];
     
-    // Use modulo to ensure we never go out of bounds
-    return dayNumber ? colors[(dayNumber - 1) % colors.length] : '#6B7280'; // Default gray for rest days
+    return dayNumber ? colors[(dayNumber - 1) % colors.length] : '#6B7280';
   };
   
   // Get color for muscle group/workout type
   const getMuscleGroupColor = (muscleGroup: string) => {
     const colors: Record<string, string> = {
-      hiit_strength: '#4F46E5', // Indigo
-      cardio_core: '#EF4444',   // Red
-      tabata: '#F59E0B',        // Amber
-      circuit_training: '#10B981', // Emerald
-      endurance: '#0EA5E9',     // Sky
-      active_recovery: '#8B5CF6', // Violet
-      rest: '#6B7280',          // Gray
-      core: '#EC4899',          // Pink
-      // Add more muscle groups/workout types as needed
+      hiit_strength: '#4F46E5',
+      cardio_core: '#EF4444',
+      tabata: '#F59E0B',
+      circuit_training: '#10B981',
+      endurance: '#0EA5E9',
+      active_recovery: '#8B5CF6',
+      rest: '#6B7280',
+      core: '#EC4899',
     };
     
-    // Convert to lowercase and remove spaces for matching
     const normalizedGroup = muscleGroup.toLowerCase().replace(/\s+/g, '_');
-    return colors[normalizedGroup] || '#3B82F6'; // Default blue
+    return colors[normalizedGroup] || '#3B82F6';
   };
   
   if (authLoading) {
@@ -552,7 +542,6 @@ export default function WorkoutsPage() {
                         };
                       }}
                       dayPropGetter={date => {
-                        // Check if the date matches our highlighted date (which changes as user navigates)
                         if (
                           date.getDate() === highlightedDate.getDate() &&
                           date.getMonth() === highlightedDate.getMonth() &&
@@ -567,16 +556,13 @@ export default function WorkoutsPage() {
                         }
                         return {};
                       }}
-                      // Custom formats to display only duration instead of times
                       formats={{
-                        eventTimeRangeFormat: () => '', // Hide the time range
-                        timeGutterFormat: () => '', // Hide time gutter
+                        eventTimeRangeFormat: () => '',
+                        timeGutterFormat: () => '',
                         dayRangeHeaderFormat: ({ start, end }) => {
-                          // Format for week view header
                           return `${moment(start).format('MMM D')} – ${moment(end).format('MMM D')}`;
                         }
                       }}
-                      // Ensure agenda view doesn't show times either
                       components={{
                         event: (props) => (
                           <div>
@@ -662,7 +648,6 @@ export default function WorkoutsPage() {
           <TabsContent value="workout" className="space-y-4">
             {selectedSession ? (
               <div className="grid gap-6 md:grid-cols-2">
-                {/* Workout Details */}
                 <Card>
                   <CardHeader>
                     <div className="flex justify-between items-start">
@@ -735,7 +720,6 @@ export default function WorkoutsPage() {
                   </CardContent>
                 </Card>
 
-                {/* Rest Timer */}
                 <Card>
                   <CardHeader>
                     <CardTitle>Rest Timer</CardTitle>
@@ -760,9 +744,7 @@ export default function WorkoutsPage() {
                       </Button>
                     </div>
                     <div className="flex justify-center space-x-2">
-                      {/* Use rest periods from the exercises if available */}
                       {selectedSession.exercises.length > 0 ? (
-                        // Get unique rest periods from exercises
                         Array.from(new Set(selectedSession.exercises.map(e => e.restPeriod)))
                           .sort((a, b) => a - b)
                           .map((seconds) => (
@@ -776,7 +758,6 @@ export default function WorkoutsPage() {
                             </Button>
                           ))
                       ) : (
-                        // Default rest periods
                         [30, 45, 60, 90].map((seconds) => (
                           <Button 
                             key={seconds} 
@@ -844,7 +825,6 @@ export default function WorkoutsPage() {
           </TabsContent>
 
           <TabsContent value="exercises" className="space-y-6">
-            {/* Exercise library section */}
             <div className="flex gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -861,7 +841,6 @@ export default function WorkoutsPage() {
               </Button>
             </div>
 
-            {/* Exercise Library */}
             {filteredExercises.length > 0 ? (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredExercises.map((exercise) => (
@@ -922,7 +901,6 @@ export default function WorkoutsPage() {
         </Tabs>
       )}
 
-      {/* Create Workout Modal (placeholder) */}
       {showCreateWorkoutModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md">
