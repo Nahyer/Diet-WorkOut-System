@@ -15,14 +15,22 @@ export default function Services() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative py-20 bg-gray-900">
+      <section className="relative py-20">
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-purple-500/20 backdrop-blur-xl" />
+          <div 
+            className="absolute inset-0 bg-black/40" // Dark overlay for better text visibility
+            style={{
+              backgroundImage: "url('/images/fitness-service.jpg')",
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+            }}
+          />
         </div>
         <div className="container relative z-10 mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto">
             <motion.h1
-              className="text-4xl md:text-5xl font-bold text-white mb-6"
+              className="text-4xl md:text-5xl font-bold text-red-500 mb-6" // Changed from text-white to text-red-500
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
@@ -30,7 +38,7 @@ export default function Services() {
               Transform Your Fitness Journey with AI
             </motion.h1>
             <motion.p
-              className="text-xl text-gray-300 mb-8"
+              className="text-xl text-red-500 font-semibold mb-8" // Changed from text-gray-300 to text-black and added font-semibold
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
