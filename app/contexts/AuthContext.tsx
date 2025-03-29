@@ -142,6 +142,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem("user", JSON.stringify(normalizedUser));
       localStorage.setItem("token", response.token);
       
+      // Update streak information on login
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const lastLoginDate = localStorage.getItem("lastLoginDate");
+      
+      if (!lastLoginDate) {
+        // First time login, initialize streak to 1
+        localStorage.setItem("userStreak", "1");
+      } else if (lastLoginDate !== today) {
+        // Check if last login was yesterday
+        const lastDate = new Date(lastLoginDate);
+        const todayDate = new Date(today);
+        
+        const timeDiff = todayDate.getTime() - lastDate.getTime();
+        const dayDiff = Math.floor(timeDiff / (1000 * 3600 * 24));
+        
+        if (dayDiff === 1) {
+          // Consecutive day, increment streak
+          const currentStreak = parseInt(localStorage.getItem("userStreak") || "0");
+          localStorage.setItem("userStreak", (currentStreak + 1).toString());
+        } else if (dayDiff > 1) {
+          // Streak broken, reset to 1
+          localStorage.setItem("userStreak", "1");
+        }
+      }
+      
+      // Update last login date
+      localStorage.setItem("lastLoginDate", today);
+      
       setUser(normalizedUser);
       setIsAuthenticated(true);
       

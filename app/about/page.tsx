@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import Image from "next/image"
 
 // Animated counter component
 function Counter({ from, to }: { from: number; to: number }) {
@@ -34,9 +35,11 @@ export default function About() {
       {/* Hero Section */}
       <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-black/60">
-          <img
+          <Image
             src="/images/gym-equipment.jpg"
             alt="Gym Equipment"
+            fill
+            priority
             className="w-full h-full object-cover mix-blend-overlay"
           />
         </div>
@@ -166,35 +169,27 @@ export default function About() {
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">Meet Our Expert Team</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-        <TeamMemberCard
-          image="/images/Head-fitness.jpg"
-          name="John Doe"
-          role="Head of Fitness"
-          bio="15+ years of experience in personal training and sports science."
-        />
-        <TeamMemberCard
-          image="/images/chief-nutrition.jpg"
-          name="Jane Smith"
-          role="Chief Nutritionist"
-          bio="Registered dietitian with expertise in sports nutrition and meal planning."
-        />
-        <TeamMemberCard
-          image="/images/AI-tech.jpg"
-          name="Mike Johnson"
-          role="AI Technology Lead"
-          bio="PhD in Computer Science, specializing in machine learning and fitness tech."
-        />
+            <TeamMemberCard
+              image="/images/Head-fitness.jpg"
+              name="John Doe"
+              role="Head of Fitness"
+              bio="15+ years of experience in personal training and sports science."
+            />
+            <TeamMemberCard
+              image="/images/chief-nutrition.jpg"
+              name="Jane Smith"
+              role="Chief Nutritionist"
+              bio="Registered dietitian with expertise in sports nutrition and meal planning."
+            />
+            <TeamMemberCard
+              image="/images/AI-tech.jpg"
+              name="Mike Johnson"
+              role="AI Technology Lead"
+              bio="PhD in Computer Science, specializing in machine learning and fitness tech."
+            />
           </div>
         </div>
       </section>
-
-      <style jsx>{`
-        img {
-          object-fit: cover;
-          width: 100%;
-          height: 100%;
-        }
-      `}</style>
 
       {/* CTA Section */}
       <section className="py-20 bg-red-500 text-white">
@@ -217,11 +212,14 @@ export default function About() {
 function TeamMemberCard({ image, name, role, bio }: { image: string; name: string; role: string; bio: string }) {
   return (
     <Card className="overflow-hidden group">
-      <div className="relative overflow-hidden">
-        <img
+      <div className="relative h-64 overflow-hidden">
+        <Image
           src={image || "/placeholder.svg"}
           alt={name}
-          className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw"
+          className="object-cover transition-transform duration-300 group-hover:scale-105"
+          priority={false}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
           <div className="flex gap-4 text-white">
