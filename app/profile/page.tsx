@@ -5,9 +5,10 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "../supabase-client"
+import type { User } from "@supabase/supabase-js"
 
 export default function Profile() {
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [height, setHeight] = useState("")
   const [weight, setWeight] = useState("")
@@ -23,7 +24,7 @@ export default function Profile() {
       if (user) {
         setUser(user)
         // Fetch user profile data
-        const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+        const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single()
         if (data) {
           setHeight(data.height || "")
           setWeight(data.weight || "")
@@ -42,7 +43,7 @@ export default function Profile() {
     e.preventDefault()
     try {
       const { error } = await supabase.from("profiles").upsert({
-        id: user.id,
+        id: user?.id,
         height: Number.parseFloat(height),
         weight: Number.parseFloat(weight),
         age: Number.parseInt(age),
@@ -52,7 +53,8 @@ export default function Profile() {
       alert("Profile updated successfully!")
       router.push("/dashboard")
     } catch (error) {
-      alert("Error updating profile: " + error.message)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      alert("Error updating profile: " + errorMessage)
     }
   }
 

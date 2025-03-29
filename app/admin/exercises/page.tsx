@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Filter, Plus, MoreHorizontal, Download, Trash2, Edit, Eye, Dumbbell } from "lucide-react"
+import { Search, Filter, MoreHorizontal, Download, Trash2, Edit, Eye, Dumbbell } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -174,7 +174,7 @@ export default function ExerciseManagement() {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(10);
   const [paginatedExercises, setPaginatedExercises] = useState<Exercise[]>([]);
   
   const { isAdmin, isAuthenticated } = useAuth();
@@ -273,7 +273,7 @@ export default function ExerciseManagement() {
         toast({
           title: "Success",
           description: `${selectedExercises.length} exercises deleted successfully`,
-          variant: "success",
+          variant: "default",
           duration: 3000,
         });
       } else if (exerciseToDelete) {
@@ -286,7 +286,7 @@ export default function ExerciseManagement() {
         toast({
           title: "Success",
           description: "Exercise deleted successfully",
-          variant: "success",
+          variant: "default",
           duration: 3000,
         });
       }

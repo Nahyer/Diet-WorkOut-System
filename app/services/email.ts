@@ -1,8 +1,6 @@
 // services/email.ts
 import { activityService } from "./activity";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
 export interface EmailData {
   fromEmail: string;
   fromName: string;
@@ -19,7 +17,7 @@ export const emailService = {
    * In a real application, this would call a backend API
    * For now, we'll simulate success after a short delay
    */
-  sendEmail: async (emailData: EmailData, token: string): Promise<{ success: boolean }> => {
+  sendEmail: async (emailData: EmailData): Promise<{ success: boolean }> => {
     try {
       // In a real application, you would use this:
       /*
@@ -62,7 +60,7 @@ export const emailService = {
   /**
    * Send a welcome email to a new user
    */
-  sendWelcomeEmail: async (userId: number, userName: string, userEmail: string, token: string): Promise<{ success: boolean }> => {
+  sendWelcomeEmail: async (userId: number, userName: string, userEmail: string): Promise<{ success: boolean }> => {
     const emailData: EmailData = {
       fromEmail: 'support@yourfitnessapp.com',
       fromName: 'Fitness App Support',
@@ -72,7 +70,7 @@ export const emailService = {
       message: `Hello ${userName},\n\nWelcome to Fitness App! We're excited to have you join our community.\n\nHere are some tips to get started:\n- Complete your profile\n- Set your fitness goals\n- Explore our workout programs\n\nIf you have any questions, feel free to contact our support team.\n\nBest regards,\nThe Fitness App Team`
     };
     
-    const result = await emailService.sendEmail(emailData, token);
+    const result = await emailService.sendEmail(emailData);
     
     // Track this welcome email activity
     activityService.addActivity({
@@ -87,7 +85,7 @@ export const emailService = {
   /**
    * Send a notification email about a new feature or event
    */
-  sendNotificationEmail: async (users: { id: number, name: string, email: string }[], subject: string, message: string, token: string): Promise<{ success: boolean, count: number }> => {
+  sendNotificationEmail: async (users: { id: number, name: string, email: string }[], subject: string, message: string): Promise<{ success: boolean, count: number }> => {
     try {
       // In a real app, you might use a batch email API endpoint
       // Here we'll just send them one by one
@@ -104,7 +102,7 @@ export const emailService = {
         };
         
         try {
-          await emailService.sendEmail(emailData, token);
+          await emailService.sendEmail(emailData);
           
           // Track this notification email activity
           activityService.addActivity({

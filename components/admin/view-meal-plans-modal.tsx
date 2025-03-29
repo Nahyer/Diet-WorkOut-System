@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -75,7 +75,7 @@ export function ViewMealPlansModal({ nutritionPlanId, trigger }: ViewMealPlansMo
   }
 
   // Load meal plans when the modal is opened
-  const loadMealPlans = async () => {
+  const loadMealPlans = useCallback(async () => {
     if (!isOpen) return
     
     setIsLoading(true)
@@ -118,12 +118,12 @@ export function ViewMealPlansModal({ nutritionPlanId, trigger }: ViewMealPlansMo
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [isOpen, nutritionPlanId, toast]);
   
   // Effect to load meal plans when the modal is opened
   useEffect(() => {
     loadMealPlans();
-  }, [isOpen, nutritionPlanId]);
+  }, [isOpen, nutritionPlanId, loadMealPlans]);
 
   // Get unique day numbers for tabs
   const uniqueDays = [...new Set(mealPlans.map(meal => meal.dayNumber))].sort((a, b) => a - b);

@@ -73,7 +73,7 @@ export default function NutritionManagement() {
   const [mealPlans, setMealPlans] = useState<MealPlan[]>([]);
   const [filteredNutritionPlans, setFilteredNutritionPlans] = useState<NutritionPlan[]>([]);
   const [filteredMealPlans, setFilteredMealPlans] = useState<MealPlan[]>([]);
-  const [selectedPlans, setSelectedPlans] = useState<number[]>([]);
+  // const [selectedPlans, setSelectedPlans] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [goalFilter, setGoalFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -82,7 +82,7 @@ export default function NutritionManagement() {
   // Delete confirmation dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [planToDelete, setPlanToDelete] = useState<number | null>(null);
-  const [isBulkDelete, setIsBulkDelete] = useState(false);
+  // const [ setIsBulkDelete] = useState(false);
   const [deleteType, setDeleteType] = useState<"nutrition" | "meal">("nutrition");
   
   // Success message dialog state
@@ -91,7 +91,7 @@ export default function NutritionManagement() {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(10);
   const [paginatedItems, setPaginatedItems] = useState<NutritionPlan[] | MealPlan[]>([]);
   
   const { isAdmin, isAuthenticated } = useAuth();
@@ -250,7 +250,7 @@ export default function NutritionManagement() {
   const confirmDeletePlan = (id: number, type: "nutrition" | "meal") => {
     setPlanToDelete(id);
     setDeleteType(type);
-    setIsBulkDelete(false);
+    // setIsBulkDelete(false);
     setIsDeleteDialogOpen(true);
   };
 
@@ -407,7 +407,7 @@ export default function NutritionManagement() {
           {activeView === "nutrition" ? (
             <AddNutritionPlanModal onNutritionPlanAdded={loadNutritionPlans} />
           ) : (
-            <AddMealPlanModal onMealPlanAdded={loadMealPlans} nutritionPlans={nutritionPlans} />
+            <AddMealPlanModal onMealPlanAdded={loadMealPlans} nutritionPlans={nutritionPlans.map(np => ({ ...np, restrictions: np.restrictions || "" }))} />
           )}
         </div>
       </div>
@@ -531,7 +531,7 @@ export default function NutritionManagement() {
                                     }
                                   />
                                   <AddMealPlanModal 
-                                    nutritionPlans={[plan]}
+                                    nutritionPlans={[{ ...plan, restrictions: plan.restrictions || "" }]}
                                     preselectedNutritionPlanId={plan.nutritionPlanId}
                                     onMealPlanAdded={loadMealPlans}
                                     trigger={

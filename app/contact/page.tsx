@@ -246,7 +246,7 @@ export default function Contact() {
             <AlertDialogTitle>Email Not Found</AlertDialogTitle>
             <AlertDialogDescription>
               <div className="space-y-4">
-                <p>We couldn't find an account with the email address you entered. To submit a support ticket, you need to create an account first.</p>
+                <p>We couldn&apos;t find an account with the email address you entered. To submit a support ticket, you need to create an account first.</p>
                 <div className="bg-amber-50 p-4 rounded-md border border-amber-200 text-amber-800">
                   <p className="flex items-center font-medium mb-1">
                     <AlertCircle className="h-4 w-4 mr-2" />
@@ -290,7 +290,7 @@ export default function Contact() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              Have questions? We'd love to hear from you.
+              Have questions? We&apos;d love to hear from you.
             </motion.p>
           </div>
         </div>
@@ -306,7 +306,7 @@ export default function Contact() {
                 <CardHeader>
                   <CardTitle>Send us a Message</CardTitle>
                   <CardDescription>
-                    Fill out the form below and we'll get back to you as soon as possible.
+                    Fill out the form below and we&apos;ll get back to you as soon as possible.
                     <div className="mt-2 text-red-600 font-medium flex items-center">
                       <AlertCircle className="h-4 w-4 mr-1" />
                       Your email must be registered in our system to submit a support ticket

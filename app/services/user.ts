@@ -54,7 +54,7 @@ interface SuspendedUserData {
 async function apiRequest<T>(
   endpoint: string, 
   method: string = 'GET', 
-  data?: any,
+  data?: unknown,
   token?: string
 ): Promise<T> {
   const url = `${API_URL}${endpoint}`;
@@ -324,7 +324,7 @@ export const userService = {
   },
   
   // Soft delete user - store deleted status in localStorage instead of database
-  softDeleteUser: async (userId: number, token?: string): Promise<void> => {
+  softDeleteUser: async (userId: number): Promise<void> => {
     // Add user to the deleted users list in localStorage
     addDeletedUser(userId);
     
@@ -337,7 +337,7 @@ export const userService = {
   },
 
   // Bulk soft delete multiple users
-  bulkSoftDeleteUsers: async (userIds: number[], token?: string): Promise<void> => {
+  bulkSoftDeleteUsers: async (userIds: number[]): Promise<void> => {
     // Add all users to the deleted users list in localStorage
     addDeletedUsers(userIds);
     

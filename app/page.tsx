@@ -2,10 +2,10 @@
 
 import type React from "react"
 import Link from "next/link"
-import image from "next/image"
-import { ArrowRight, Calendar, Apple, Dumbbell, ChevronRight, Star, Users, Trophy } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import BMICalculator from "@/components/BMICalculator"
+import { Calendar, Apple, Dumbbell, ChevronRight, Star, Users, Trophy } from "lucide-react"
+import Image from "next/image"
 
 export default function Home() {
   return (
@@ -145,7 +145,13 @@ function TestimonialCard({
 }) {
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-      <img src={image || "/placeholder.svg"} alt={name} className="w-full h-48 object-cover rounded-lg mb-4" />
+     <Image
+          src={image || "/placeholder.svg"}
+          alt={name}
+          width={300}
+          height={200}
+          className="object-cover rounded-lg w-full"
+        />
       <blockquote className="text-lg font-medium mb-4">{quote}</blockquote>
       <div className="flex justify-between items-center">
         <span className="font-semibold">{name}</span>

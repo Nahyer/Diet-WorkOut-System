@@ -35,7 +35,7 @@ export interface WorkoutProgress {
 async function apiRequest<T>(
   endpoint: string, 
   method: string = 'GET', 
-  data?: any,
+  data?: unknown,
   token?: string
 ): Promise<T> {
   const url = `${API_URL}${endpoint}`;

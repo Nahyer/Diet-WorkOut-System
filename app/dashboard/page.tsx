@@ -4,16 +4,11 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import {
-  Activity,
   Dumbbell,
   Apple,
-  Calendar,
-  TrendingUp,
   Timer,
   Flame,
   Plus,
-  ChevronRight,
-  Award,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -99,7 +94,7 @@ export default function Dashboard() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-xs font-medium">Today's Workout</CardTitle>
+            <CardTitle className="text-xs font-medium">Today&apos;s Workout</CardTitle>
             <Dumbbell className="h-3 w-3 text-black-foreground" />
           </CardHeader>
           <CardContent>
@@ -151,7 +146,7 @@ export default function Dashboard() {
 
         <Card className="col-span-3">
           <CardHeader>
-            <CardTitle>Today's Focus</CardTitle>
+            <CardTitle>Today&apos;s Focus</CardTitle>
             <CardDescription>Your daily fitness priorities</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

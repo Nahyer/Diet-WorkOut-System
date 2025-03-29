@@ -93,7 +93,7 @@ export function AddExerciseModal({ onExerciseAdded }: AddExerciseModalProps) {
       toast({
         title: "Success",
         description: "Exercise created successfully",
-        variant: "success",
+        variant: "default",
       });
       
       // Close modal and refresh data

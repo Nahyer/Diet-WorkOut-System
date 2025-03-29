@@ -2,16 +2,13 @@
 
 import type React from "react"
 
-import { useState } from "react"
 import { motion } from "framer-motion"
-import { Brain, Apple, Users, ChevronRight, CheckCircle2, BarChart3 } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Brain, Apple, Users, ChevronRight, BarChart3 } from "lucide-react"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Button } from "@/components/ui/button"
 
 export default function Services() {
-  const [selectedPlan, setSelectedPlan] = useState("monthly")
-
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -142,58 +139,6 @@ function FeatureCard({
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-    </Card>
-  )
-}
-
-function PricingCard({
-  title,
-  price,
-  period,
-  features,
-  buttonText,
-  buttonVariant = "default",
-  highlighted = false,
-}: {
-  title: string
-  price: string
-  period: string
-  features: string[]
-  buttonText: string
-  buttonVariant?: "default" | "outline"
-  highlighted?: boolean
-}) {
-  return (
-    <Card className={`relative ${highlighted ? "border-red-500 shadow-lg" : ""}`}>
-      {highlighted && (
-        <div className="absolute top-0 right-0 bg-red-500 text-white px-3 py-1 text-sm rounded-bl-lg">Most Popular</div>
-      )}
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <div className="mt-4">
-          <span className="text-4xl font-bold">${price}</span>
-          <span className="text-gray-500">{period}</span>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <ul className="space-y-3">
-          {features.map((feature, index) => (
-            <li key={index} className="flex items-center">
-              <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" />
-              <span>{feature}</span>
-            </li>
-          ))}
-        </ul>
-        <Button
-          className={`w-full mt-6 ${
-            buttonVariant === "outline"
-              ? "border-2 border-red-500 text-red-500 hover:bg-red-50"
-              : "bg-red-500 text-white hover:bg-red-600"
-          }`}
-        >
-          {buttonText}
-        </Button>
-      </CardContent>
     </Card>
   )
 }

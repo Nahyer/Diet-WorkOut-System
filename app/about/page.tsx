@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Brain, Target, Users, Award, TrendingUp, Shield, ChevronRight, Github, Linkedin, Twitter } from "lucide-react"
+import { Brain, Target, Users, TrendingUp, ChevronRight, Github, Linkedin, Twitter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import Image from "next/image"
 
 // Animated counter component
 function Counter({ from, to }: { from: number; to: number }) {
@@ -34,10 +35,11 @@ export default function About() {
       {/* Hero Section */}
       <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-black/60">
-          <img
+        <Image
             src="/images/gym-equipment.jpg"
             alt="Gym Equipment"
-            className="w-full h-full object-cover mix-blend-overlay"
+            fill
+            className="object-cover mix-blend-overlay"
           />
         </div>
         <div className="relative z-10 text-center text-white max-w-4xl mx-auto px-4">
@@ -217,11 +219,13 @@ export default function About() {
 function TeamMemberCard({ image, name, role, bio }: { image: string; name: string; role: string; bio: string }) {
   return (
     <Card className="overflow-hidden group">
-      <div className="relative overflow-hidden">
-        <img
+      <div className="relative overflow-hidden h-64">
+        <Image
           src={image || "/placeholder.svg"}
           alt={name}
-          className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
+          fill
+          className="object-cover transition-transform duration-300 group-hover:scale-105"
+          sizes="(max-width: 768px) 100vw, 33vw"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
           <div className="flex gap-4 text-white">

@@ -1,6 +1,7 @@
 "use client"
 
-import { Dumbbell, Video, Image, ExternalLink } from "lucide-react"
+import { Dumbbell, Video, Image as ImageIcon, ExternalLink } from "lucide-react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -153,11 +154,21 @@ export function ViewExerciseModal({
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 text-blue-600 hover:text-blue-800"
                     >
-                      <Image className="h-4 w-4" />
+                      <ImageIcon className="h-4 w-4" />
                       <span>View Exercise Image</span>
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   )}
+                  <div className="w-full relative h-64">
+                    <Image 
+                      src={`http://localhost:8000/exercises/image/${exercise.exerciseId}`} 
+                      alt={`Exercise demonstration for ${exercise.name}`}
+                      fill
+                      style={{ objectFit: 'contain' }}
+                      className="rounded-md"
+                      priority
+                    />
+                  </div>
                 </div>
               </div>
             </>

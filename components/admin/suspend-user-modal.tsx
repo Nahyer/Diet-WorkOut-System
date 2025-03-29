@@ -47,7 +47,7 @@ export function SuspendUserModal({ user, onUserSuspended, trigger }: SuspendUser
       
       toast({
         title: "User Suspended",
-        description: `${user.fullName}'s account has been suspended for 24 hours.`,
+        description: `${user.fullName}&apos;s account has been suspended for 24 hours.`,
         variant: "success",
       });
       
@@ -80,7 +80,7 @@ export function SuspendUserModal({ user, onUserSuspended, trigger }: SuspendUser
             Temporarily Suspend User
           </DialogTitle>
           <DialogDescription>
-            This will suspend {user.fullName}'s account for 24 hours. They will not be able
+            This will suspend {user.fullName}&apos;s account for 24 hours. They will not be able
             to log in during this period. The suspension will automatically expire after 24 hours.
           </DialogDescription>
         </DialogHeader>

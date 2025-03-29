@@ -8,14 +8,10 @@ import { cn } from "@/lib/utils"
 import {
   Users,
   Dumbbell,
-  LineChart,
   Settings,
   PanelLeft,
   LayoutDashboard,
-  MessageSquare,
-  Bell,
   FileText,
-  HelpCircle,
   LogOut,
   Apple
 } from "lucide-react"
