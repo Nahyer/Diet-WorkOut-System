@@ -80,6 +80,20 @@ interface CalendarEvent {
   allDay?: boolean;
 }
 
+// Function to deduplicate exercises by ID
+const deduplicateExercises = (exercises: Exercise[]): Exercise[] => {
+  const uniqueExercises = new Map<number, Exercise>();
+  
+  // Keep only the first occurrence of each exercise ID
+  exercises.forEach(exercise => {
+    if (!uniqueExercises.has(exercise.exerciseId)) {
+      uniqueExercises.set(exercise.exerciseId, exercise);
+    }
+  });
+  
+  return Array.from(uniqueExercises.values());
+};
+
 // API function to fetch user's workout plan
 const fetchUserWorkoutPlan = async (userId: string | number): Promise<WorkoutPlan[]> => {
   try {
@@ -180,24 +194,23 @@ export default function WorkoutsPage() {
           );
           console.log(`Selected most recent plan: ${mostRecentPlan.name}`);
           setActivePlan(mostRecentPlan);
-          generateCalendarEvents(mostRecentPlan);
-
-          const today = new Date();
-          const dayOfWeek = today.getDay() || 7; // Convert Sunday (0) to 7
-          console.log(`Today is day ${dayOfWeek} of the week`);
-          const todaySession = mostRecentPlan.sessions.find(s => s.dayNumber === dayOfWeek);
-
+          
+          // Always start with day 1 session for today
+          const todaySession = mostRecentPlan.sessions.find(s => s.dayNumber === 1);
+          
           if (todaySession) {
-            console.log(`Found today's session: ${todaySession.name}`);
+            console.log(`Setting today's session (Day 1): ${todaySession.name}`);
             setSelectedSession(todaySession);
-            setHighlightedDate(today);
-            setCalendarDate(today);
+            setHighlightedDate(new Date());
+            setCalendarDate(new Date());
           } else if (mostRecentPlan.sessions.length > 0) {
-            console.log(`No session for today, selecting first session: ${mostRecentPlan.sessions[0].name}`);
+            console.log(`No Day 1 session found, selecting first available session`);
             setSelectedSession(mostRecentPlan.sessions[0]);
-            setHighlightedDate(today);
-            setCalendarDate(today);
+            setHighlightedDate(new Date());
+            setCalendarDate(new Date());
           }
+          
+          generateCalendarEvents(mostRecentPlan);
         } else {
           console.log("No workout plans found for this user");
         }
@@ -216,25 +229,40 @@ export default function WorkoutsPage() {
   const generateCalendarEvents = (plan: WorkoutPlan) => {
     const events: CalendarEvent[] = [];
     const today = new Date();
-    const todayDayOfWeek = today.getDay() || 7; // Convert Sunday (0) to 7
+    today.setHours(0, 0, 0, 0); // Reset time part
 
+<<<<<<< HEAD
     for (let week = 0; week < plan.durationWeeks; week++) {
       plan.sessions.forEach(session => {
         if (session.dayNumber > 0) {
           const sessionDate = new Date(today);
           const dayOffset = (session.dayNumber - todayDayOfWeek + 7) % 7;
           sessionDate.setDate(today.getDate() + (week * 7) + dayOffset);
+=======
+    // Start counting days from 1 (today) regardless of the actual day of week
+    const totalDays = plan.durationWeeks * 7;
 
-          events.push({
-            id: session.sessionId + (week * 100),
-            title: `${session.name} (${session.duration} min)`,
-            start: new Date(sessionDate),
-            end: new Date(sessionDate),
-            resource: session,
-            allDay: true
-          });
-        }
-      });
+    for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
+      const currentDate = new Date(today);
+      currentDate.setDate(today.getDate() + dayOffset);
+      
+      // Calculate the day number (1-7) based on offset from today
+      const dayNumber = (dayOffset % 7) + 1;
+>>>>>>> 56e16c0db77bbb0e018f7cfb2c2b681e13dab45a
+
+      // Find session for this day number
+      const session = plan.sessions.find(s => s.dayNumber === dayNumber);
+      
+      if (session) {
+        events.push({
+          id: session.sessionId + dayOffset,
+          title: `${session.name} (${session.duration} min)`,
+          start: new Date(currentDate),
+          end: new Date(currentDate),
+          resource: session,
+          allDay: true
+        });
+      }
     }
 
     console.log(`Generated ${events.length} calendar events for ${plan.durationWeeks} weeks`);
@@ -247,15 +275,18 @@ export default function WorkoutsPage() {
     setHighlightedDate(new Date(event.start));
   };
 
-  // Filter exercises based on search query
+  // Get all exercises from all sessions
   const allExercises = activePlan?.sessions.flatMap(session => 
     session.exercises.map(ex => ex.exercise)
   ) || [];
   
-  const filteredExercises = allExercises.filter(exercise => 
-    exercise.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    exercise.targetMuscleGroup.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    exercise.equipment.toLowerCase().includes(searchQuery.toLowerCase())
+  // Filter and deduplicate exercises based on search query
+  const filteredExercises = deduplicateExercises(
+    allExercises.filter(exercise => 
+      exercise.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      exercise.targetMuscleGroup.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      exercise.equipment.toLowerCase().includes(searchQuery.toLowerCase())
+    )
   );
 
   // Handle exercise completion

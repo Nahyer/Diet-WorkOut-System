@@ -37,6 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import Image from "next/image"
 
 // API service for support tickets and user verification
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -270,11 +271,17 @@ export default function Contact() {
       </AlertDialog>
 
       {/* Hero Section */}
-      <section className="relative py-20 bg-gray-900">
+      <section className="relative h-[400px]">
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-purple-500/20 backdrop-blur-xl" />
+          <Image
+            src="/images/customer-service.jpg"
+            alt="Hero background"
+            fill
+            className="object-cover object-top brightness-50"
+            priority
+          />
         </div>
-        <div className="container relative z-10 mx-auto px-4">
+        <div className="container relative z-10 mx-auto px-4 h-full flex items-center">
           <div className="text-center max-w-3xl mx-auto">
             <motion.h1
               className="text-4xl md:text-5xl font-bold text-white mb-6"

@@ -71,9 +71,26 @@ export default function SettingsPage() {
   
   const [saving, setSaving] = useState(false)
   // Initialize profile image from localStorage for persistence
-  const [profileImage, setProfileImage] = useState<string | null>(
-    typeof window !== 'undefined' ? localStorage.getItem("profileImage") : null
-  )
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+
+  // Add a function to get user-specific localStorage key
+  const getUserSpecificKey = (key: string) => {
+    if (!user) return key;
+    const userId = user.id || user.userId;
+    return `${key}_${userId}`;
+  };
+  
+  // Add this effect to load the profile image when the user is loaded
+  useEffect(() => {
+    if (user) {
+      const userId = user.id || user.userId;
+      if (userId) {
+        // Use user-specific key for profile image
+        const userProfileImage = localStorage.getItem(getUserSpecificKey("profileImage"));
+        setProfileImage(userProfileImage);
+      }
+    }
+  }, [user]);
 
   // Effect to populate form with user data when available
   useEffect(() => {
@@ -105,20 +122,23 @@ export default function SettingsPage() {
 
   // Handle file selection with persistent storage
   const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
+    const file = event.target.files?.[0];
+    if (file && user) {
+      const reader = new FileReader();
       reader.onload = (e) => {
         if (e.target?.result) {
-          const imageData = e.target.result as string
-          // Save profile image to localStorage for persistence
-          localStorage.setItem("profileImage", imageData)
-          setProfileImage(imageData)
+          const imageData = e.target.result as string;
+          // Save profile image to localStorage with user-specific key
+          const userId = user.id || user.userId;
+          if (userId) {
+            localStorage.setItem(getUserSpecificKey("profileImage"), imageData);
+            setProfileImage(imageData);
+          }
         }
-      }
-      reader.readAsDataURL(file)
+      };
+      reader.readAsDataURL(file);
     }
-  }
+  };
 
   // Handle profile form submission
   const handleProfileUpdate = async () => {
@@ -269,7 +289,9 @@ export default function SettingsPage() {
             clearInterval(interval);
           } else {
             width += 2;
-            if (progressBar instanceof HTMLElement) progressBar.style.width = width + '%';
+
+            if (progressBar && progressBar instanceof HTMLElement) progressBar.style.width = width + '%';
+
           }
         }, 80); // Will take about 4 seconds to fill
         

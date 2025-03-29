@@ -207,7 +207,7 @@ export default function NutritionPage() {
   const markMealAsConsumed = async (mealPlanId: number, dayNumber: number) => {
     const userId = getUserId();
     if (!userId) return;
-
+  
     try {
       const response = await fetch('http://localhost:8000/api/meals/consume', {
         method: 'POST',
@@ -217,11 +217,17 @@ export default function NutritionPage() {
         },
         body: JSON.stringify({ userId, mealPlanId }),
       });
-
+  
       if (!response.ok) throw new Error('Failed to mark meal as consumed');
       
       const { consumption } = await response.json();
       setConsumedMeals(prev => [...prev, { mealPlanId, dayNumber, consumedAt: consumption.consumedAt }]);
+      
+      // Dispatch custom event to notify other components (like dashboard) of meal consumption
+      const mealConsumedEvent = new CustomEvent("mealConsumed", {
+        detail: { mealPlanId, dayNumber, consumedAt: consumption.consumedAt }
+      });
+      window.dispatchEvent(mealConsumedEvent);
     } catch (error) {
       console.error('Error marking meal as consumed:', error);
     }

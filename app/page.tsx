@@ -2,9 +2,15 @@
 
 import type React from "react"
 import Link from "next/link"
+<<<<<<< HEAD
 import { Button } from "@/components/ui/button"
 import BMICalculator from "@/components/BMICalculator"
 import { Calendar, Apple, Dumbbell, ChevronRight, Star, Users, Trophy } from "lucide-react"
+=======
+import { ArrowRight, Calendar, Apple, Dumbbell, ChevronRight, Star, Users, Trophy } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import BMICalculator from "@/components/BMICalculator"
+>>>>>>> 56e16c0db77bbb0e018f7cfb2c2b681e13dab45a
 import Image from "next/image"
 
 export default function Home() {
@@ -13,9 +19,11 @@ export default function Home() {
       {/* Hero Section */}
       <section className="relative py-20 md:py-32 flex items-center">
         <div className="absolute inset-0 bg-gradient-to-r from-black/90 to-black/60">
-          <img
-            src="/images/hero-background.jpg"
+          <Image
+            src="/images/Home-page.jpg"
             alt="Hero Background"
+            fill
+            priority
             className="w-full h-full object-cover mix-blend-overlay"
           />
         </div>
@@ -83,7 +91,7 @@ export default function Home() {
           <h2 className="text-2xl md:text-3xl font-bold text-center mb-12">Success Stories</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             <TestimonialCard
-              image="/images/Sarah-Johnson.jpg"
+              image="/images/lost-pounds.jpg"
               quote="Lost 30 pounds in 3 months!"
               name="Sarah Johnson"
               achievement="-30 lbs"
@@ -145,6 +153,7 @@ function TestimonialCard({
 }) {
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+<<<<<<< HEAD
      <Image
           src={image || "/placeholder.svg"}
           alt={name}
@@ -152,6 +161,18 @@ function TestimonialCard({
           height={200}
           className="object-cover rounded-lg w-full"
         />
+=======
+      <div className="relative w-full h-48 mb-4">
+        <Image
+          src={image || "/placeholder.svg"}
+          alt={name}
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          className="object-cover rounded-lg"
+          priority={false}
+        />
+      </div>
+>>>>>>> 56e16c0db77bbb0e018f7cfb2c2b681e13dab45a
       <blockquote className="text-lg font-medium mb-4">{quote}</blockquote>
       <div className="flex justify-between items-center">
         <span className="font-semibold">{name}</span>
