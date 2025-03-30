@@ -17,7 +17,8 @@ export interface ActivityItem {
     NUTRITION_PLAN_COMPLETED: 'nutrition_plan_completed',
     PASSWORD_CHANGED: 'password_changed',
     ROLE_CHANGED: 'role_changed',
-    SUBSCRIPTION_UPDATED: 'subscription_updated'
+    SUBSCRIPTION_UPDATED: 'subscription_updated',
+    ACCOUNT_DELETED: 'account_deleted'
   };
   
   // Key for storing activities in localStorage

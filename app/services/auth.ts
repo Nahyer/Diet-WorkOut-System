@@ -38,7 +38,7 @@ export interface AuthResponse {
 async function apiRequest<T>(
   endpoint: string, 
   method: string = 'GET', 
-  data?: any
+  data?: unknown
 ): Promise<T> {
   const url = `${API_URL}${endpoint}`;
   

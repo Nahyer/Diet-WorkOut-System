@@ -3,24 +3,17 @@
 import { useState } from "react"
 import { CalendarDateRangePicker } from "@/components/ui/date-range-picker"
 import {
-  FileText,
   Download,
-  Filter,
   Users,
   Activity,
-  TrendingUp,
   Dumbbell,
   Apple,
   Share2,
-  ChevronDown,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { RevenueChart } from "@/components/admin/reports/revenue-chart"
-import { UserActivityChart } from "@/components/admin/reports/user-activity-chart"
 import { WorkoutMetricsChart } from "@/components/admin/reports/workout-metrics-chart"
 import { NutritionDistributionChart } from "@/components/admin/reports/nutrition-distribution-chart"
 

@@ -47,7 +47,7 @@ interface ProfileDataWithPassword {
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { user, loading, error, isAuthenticated, logout } = useAuth()
+  const { user, loading, isAuthenticated, logout } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   // Profile state with password fields included
@@ -239,10 +239,8 @@ export default function SettingsPage() {
         throw new Error(errorData.message || 'Failed to update profile')
       }
       
-      const updatedUser = await response.json()
-      
       // Update local storage with new user data (excluding password)
-      const { password, newPassword, confirmPassword, ...userDataToStore } = updateData
+      const { password: _, newPassword: __, confirmPassword: ___, ...userDataToStore } = updateData
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}')
       const newUserData = { ...storedUser, ...userDataToStore }
       localStorage.setItem('user', JSON.stringify(newUserData))
@@ -291,7 +289,9 @@ export default function SettingsPage() {
             clearInterval(interval);
           } else {
             width += 2;
+
             if (progressBar && progressBar instanceof HTMLElement) progressBar.style.width = width + '%';
+
           }
         }, 80); // Will take about 4 seconds to fill
         

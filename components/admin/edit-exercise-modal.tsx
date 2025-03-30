@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -30,8 +29,8 @@ type Exercise = {
   imageUrl: string | null;
   caloriesBurnRate: number | null;
   instructions: string;
-  workoutExercises?: Array<any>;
-  exerciseLogs?: Array<any>;
+  workoutExercises?: Array<unknown>;
+  exerciseLogs?: Array<unknown>;
 };
 
 // Temporary service implementation for the modal
@@ -133,7 +132,7 @@ export function EditExerciseModal({
       toast({
         title: "Success",
         description: "Exercise updated successfully",
-        variant: "success",
+        variant: "default",
       });
       
       // Close modal and refresh data

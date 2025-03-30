@@ -248,18 +248,6 @@ export default function NutritionPage() {
     }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
   };
 
-  // Calculate total available nutrition for the selected day (all meals)
-  const calculateTotalDayNutrition = (meals: MealPlan[]) => {
-    return meals.reduce((acc, meal) => {
-      return {
-        calories: acc.calories + meal.calories,
-        protein: acc.protein + meal.protein,
-        carbs: acc.carbs + meal.carbs,
-        fat: acc.fat + meal.fat
-      };
-    }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
-  };
-
   // Prepare macro data for the pie chart for consumed meals on the selected day
   const prepareDayMacroData = (meals: MealPlan[]) => {
     const consumed = calculateDayConsumption(meals);
@@ -348,7 +336,7 @@ export default function NutritionPage() {
     const listDate = new Date().toLocaleDateString();
     let content = `Shopping List - ${listDate}\n\n`;
     
-    shoppingItems.forEach((item, index) => {
+    shoppingItems.forEach((item) => {
       content += `□ ${item}\n`;
     });
     
@@ -596,7 +584,7 @@ export default function NutritionPage() {
                           </span>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>This meal's nutritional values are included in your daily totals</p>
+                          <p>This meal&apos;s nutritional values are included in your daily totals</p>
                         </TooltipContent>
                       </UITooltip>
                     </TooltipProvider>
@@ -811,16 +799,16 @@ export default function NutritionPage() {
           <ScrollArea className="h-72 rounded-md border p-4">
             {shoppingItems.length > 0 ? (
               <div className="space-y-2">
-                {shoppingItems.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between">
+                {shoppingItems.map((item, _index) => (
+                  <div key={_index} className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <input type="checkbox" id={`item-${index}`} className="h-4 w-4" />
-                      <label htmlFor={`item-${index}`} className="text-sm">{item}</label>
+                      <input type="checkbox" id={`item-${_index}`} className="h-4 w-4" />
+                      <label htmlFor={`item-${_index}`} className="text-sm">{item}</label>
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => removeShoppingItem(index)}
+                      onClick={() => removeShoppingItem(_index)}
                       className="h-8 px-2"
                     >
                       ×

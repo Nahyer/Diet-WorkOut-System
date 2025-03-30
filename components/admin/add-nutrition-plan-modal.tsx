@@ -81,7 +81,7 @@ export function AddNutritionPlanModal({ onNutritionPlanAdded, trigger }: AddNutr
       toast({
         title: "Success",
         description: "Nutrition plan created successfully",
-        variant: "success",
+        variant: "default",
       })
       
       // Refresh nutrition plans list

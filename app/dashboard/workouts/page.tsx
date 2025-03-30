@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Calendar, momentLocalizer, Views } from "react-big-calendar"
+import { Calendar, momentLocalizer } from "react-big-calendar"
 import moment from "moment"
 import { Play, Pause, RotateCcw, ChevronRight, ChevronLeft, Search, Filter, Plus, Loader2, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -134,6 +134,7 @@ type CalendarView = 'month' | 'week' | 'day' | 'agenda';
 export default function WorkoutsPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlan[]>([]);
+  console.log("🚀 ~ WorkoutsPage ~ workoutPlans:", workoutPlans)
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -148,6 +149,7 @@ export default function WorkoutsPage() {
   const [highlightedDate, setHighlightedDate] = useState(new Date());
   const [showCreateWorkoutModal, setShowCreateWorkoutModal] = useState(false);
 
+  
   // Timer effect
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -168,7 +170,7 @@ export default function WorkoutsPage() {
         setLoading(true);
         setError(null);
 
-        let userId = user?.id ?? user?.userId;
+        const userId = user?.id ?? user?.userId;
         if (!userId) {
           setError("User ID not available. Please log in again.");
           setLoading(false);
@@ -229,6 +231,14 @@ export default function WorkoutsPage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Reset time part
 
+<<<<<<< HEAD
+    for (let week = 0; week < plan.durationWeeks; week++) {
+      plan.sessions.forEach(session => {
+        if (session.dayNumber > 0) {
+          const sessionDate = new Date(today);
+          const dayOffset = (session.dayNumber - todayDayOfWeek + 7) % 7;
+          sessionDate.setDate(today.getDate() + (week * 7) + dayOffset);
+=======
     // Start counting days from 1 (today) regardless of the actual day of week
     const totalDays = plan.durationWeeks * 7;
 
@@ -238,6 +248,7 @@ export default function WorkoutsPage() {
       
       // Calculate the day number (1-7) based on offset from today
       const dayNumber = (dayOffset % 7) + 1;
+>>>>>>> 56e16c0db77bbb0e018f7cfb2c2b681e13dab45a
 
       // Find session for this day number
       const session = plan.sessions.find(s => s.dayNumber === dayNumber);
@@ -365,23 +376,23 @@ export default function WorkoutsPage() {
     
     return dayNumber ? colors[(dayNumber - 1) % colors.length] : '#6B7280';
   };
-  
+
   // Get color for muscle group/workout type
-  const getMuscleGroupColor = (muscleGroup: string) => {
-    const colors: Record<string, string> = {
-      hiit_strength: '#4F46E5',
-      cardio_core: '#EF4444',
-      tabata: '#F59E0B',
-      circuit_training: '#10B981',
-      endurance: '#0EA5E9',
-      active_recovery: '#8B5CF6',
-      rest: '#6B7280',
-      core: '#EC4899',
-    };
+  // const getMuscleGroupColor = (muscleGroup: string) => {
+  //   const colors: Record<string, string> = {
+  //     hiit_strength: '#4F46E5',
+  //     cardio_core: '#EF4444',
+  //     tabata: '#F59E0B',
+  //     circuit_training: '#10B981',
+  //     endurance: '#0EA5E9',
+  //     active_recovery: '#8B5CF6',
+  //     rest: '#6B7280',
+  //     core: '#EC4899',
+  //   };
     
-    const normalizedGroup = muscleGroup.toLowerCase().replace(/\s+/g, '_');
-    return colors[normalizedGroup] || '#3B82F6';
-  };
+  //   const normalizedGroup = muscleGroup.toLowerCase().replace(/\s+/g, '_');
+  //   return colors[normalizedGroup] || '#3B82F6';
+  // };
   
   if (authLoading) {
     return (
@@ -436,7 +447,7 @@ export default function WorkoutsPage() {
         <Tabs defaultValue="schedule" className="space-y-6">
           <TabsList>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="workout">Today's Workout</TabsTrigger>
+            <TabsTrigger value="workout">Today&apos;s Workout</TabsTrigger>
             <TabsTrigger value="exercises">Exercise Library</TabsTrigger>
           </TabsList>
 
@@ -651,7 +662,7 @@ export default function WorkoutsPage() {
                   <div className="text-center py-12">
                     <h3 className="text-xl font-medium mb-2">No workout plan available</h3>
                     <p className="text-muted-foreground mb-6">
-                      You don't have any workout plans set up yet.
+                      You don&apos;t have any workout plans set up yet.
                     </p>
                     <Button 
                       className="bg-red-500 hover:bg-red-600"
@@ -910,7 +921,7 @@ export default function WorkoutsPage() {
                     <p className="text-muted-foreground">
                       {searchQuery 
                         ? `No exercises match your search for "${searchQuery}"`
-                        : "Your plan doesn't have any exercises defined yet"
+                        : "Your plan doesn&apos;t have any exercises defined yet"
                       }
                     </p>
                   </div>
@@ -927,7 +938,7 @@ export default function WorkoutsPage() {
             <CardHeader>
               <CardTitle>Create New Workout Plan</CardTitle>
               <CardDescription>
-                This feature will be available soon. You'll be able to create custom workout plans or generate AI-powered ones.
+                This feature will be available soon. You&apos;ll be able to create custom workout plans or generate AI-powered ones.
               </CardDescription>
             </CardHeader>
             <CardContent>

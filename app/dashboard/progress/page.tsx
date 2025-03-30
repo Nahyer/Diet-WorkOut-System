@@ -57,7 +57,7 @@ export default function ProgressPage() {
         setMeasurementsData(transformed.measurementsData);
         setSummary(transformed.summary);
         setLoading(false);
-      } catch (err) {
+      } catch {
         setError("Failed to load progress data.");
         toast({
           title: "Error",
@@ -116,7 +116,7 @@ export default function ProgressPage() {
         title: "Success",
         description: "Progress recorded successfully!",
       });
-    } catch (err) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to save progress. Please try again.",
@@ -145,7 +145,7 @@ export default function ProgressPage() {
           title: "Success",
           description: "Progress shared successfully!",
         });
-      } catch (err) {
+      } catch {
         toast({
           title: "Error",
           description: "Failed to share progress.",

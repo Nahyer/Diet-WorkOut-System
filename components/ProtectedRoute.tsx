@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
-  const { isAuthenticated, loading, isAdmin, user } = useAuth()
+  const { isAuthenticated, loading, isAdmin } = useAuth()
   const router = useRouter()
   const pathname = usePathname() // Use the usePathname hook to get the current path
 

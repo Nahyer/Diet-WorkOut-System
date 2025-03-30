@@ -1,13 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Filter, UserPlus, MoreHorizontal, Download, Trash2, Mail, Ban, Shield, Activity } from "lucide-react"
+import { Search, Filter, MoreHorizontal, Download, Trash2, Mail, Ban, Shield, Activity } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Pagination } from "@/components/common/pagination"
 import { AddUserModal } from "@/components/admin/add-user-modal"
-import { EditUserModal } from "@/components/admin/edit-user-modal"
 import { UserActivityModal } from "@/components/admin/user-activity-modal"
 import { EmailUserModal } from "@/components/admin/email-user-modal"
 import { ChangeRoleModal } from "@/components/admin/change-role-modal"
@@ -80,7 +79,7 @@ export default function UserManagement() {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(10);
   const [paginatedUsers, setPaginatedUsers] = useState<User[]>([]);
   
   const { isAdmin, isAuthenticated } = useAuth();
@@ -206,7 +205,7 @@ export default function UserManagement() {
         toast({
           title: "Success",
           description: `${selectedUsers.length} users deleted successfully`,
-          variant: "success",
+          variant: "default",
           duration: 3000,
         });
       } else if (userToDelete) {
@@ -220,7 +219,7 @@ export default function UserManagement() {
         toast({
           title: "Success",
           description: "User deleted successfully",
-          variant: "success",
+          variant: "default",
           duration: 3000,
         });
       }

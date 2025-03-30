@@ -9,7 +9,6 @@ import { useAuth } from "@/app/contexts/AuthContext"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
-import { toast } from "@/components/ui/use-toast"
 
 // Define types for our data
 interface UserData {
@@ -97,7 +96,7 @@ export default function AdminDashboard() {
     activeUsers: 0,
     newUsersThisMonth: 0
   })
-  const [systemData, setSystemData] = useState({
+  const [systemData] = useState({
     uptime: "99.9%",
     responseTime: "45ms"
   })
@@ -311,6 +310,7 @@ export default function AdminDashboard() {
                     date.getMonth() === currentMonth && 
                     date.getFullYear() === currentYear
             } catch (e) {
+              console.error('Error parsing date for new users:', e)
               return false
             }
           }).length
@@ -503,7 +503,7 @@ export default function AdminDashboard() {
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Welcome, {adminName}!</h2>
-          <p className="text-muted-foreground">Here's what's happening in your system today.</p>
+          <p className="text-muted-foreground">Here&apos;s what&apos;s happening in your system today.</p>
         </div>
       </div>
 

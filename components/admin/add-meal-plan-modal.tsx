@@ -37,7 +37,7 @@ type NutritionPlan = {
 // Define props for component
 interface AddMealPlanModalProps {
   onMealPlanAdded: () => void;
-  nutritionPlans: NutritionPlan[];
+  nutritionPlans: (Omit<NutritionPlan, 'goal'> & { goal?: string })[];
   preselectedNutritionPlanId?: number;
   trigger?: React.ReactNode;
 }
@@ -128,7 +128,7 @@ export function AddMealPlanModal({
       toast({
         title: "Success",
         description: "Meal plan created successfully",
-        variant: "success",
+        variant: "default",
       })
       
       // Refresh meal plans list
@@ -197,7 +197,7 @@ export function AddMealPlanModal({
                   <SelectContent>
                     {nutritionPlans.map((plan) => (
                       <SelectItem key={plan.nutritionPlanId} value={plan.nutritionPlanId.toString()}>
-                        Plan #{plan.nutritionPlanId} - {plan.goal.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                        Plan #{plan.nutritionPlanId} - {(plan.goal ?? "").split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                       </SelectItem>
                     ))}
                   </SelectContent>

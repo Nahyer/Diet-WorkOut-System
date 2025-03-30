@@ -266,7 +266,7 @@ export default function Register() {
 
               {step === 3 && (
                 <div className="space-y-4 pt-4">
-                  <Label>What's your primary fitness goal?</Label>
+                  <Label>What&apos;s your primary fitness goal?</Label>
                   <RadioGroup
                     value={formData.goal}
                     onValueChange={(value) => updateFormData("goal", value)}

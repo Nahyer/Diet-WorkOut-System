@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import { User } from "@/app/services/user"
-import { activityService, ActivityTypes } from "@/app/services/activity"
+import { activityService } from "@/app/services/activity"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -26,8 +26,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 
 interface EmailUserModalProps {
-  user: User;
-  trigger?: React.ReactNode;
+  readonly user: User;
+  readonly trigger?: React.ReactNode;
 }
 
 export function EmailUserModal({ user, trigger }: EmailUserModalProps) {
@@ -118,7 +118,7 @@ export function EmailUserModal({ user, trigger }: EmailUserModalProps) {
         toName: user.fullName,
         subject,
         message: isHTML ? message : message.replace(/\n/g, '<br />')
-      }, token);
+      });
       
       // Track this activity
       activityService.addActivity({
