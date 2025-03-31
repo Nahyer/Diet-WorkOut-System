@@ -95,14 +95,12 @@ const deduplicateExercises = (exercises: Exercise[]): Exercise[] => {
 };
 
 // API function to fetch user's workout plan
-const fetchUserWorkoutPlan = async (userId: string | number): Promise<WorkoutPlan[]> => {
+const fetchUserWorkoutPlan = async (userId: string | number, token: string): Promise<WorkoutPlan[]> => {
+  console.log("🚀 ~ fetchUserWorkoutPlan ~ token:", token)
   try {
     console.log(`Fetching workout plans for user ID: ${userId}`);
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    const token = localStorage.getItem('token');
-    
-    console.log(`Using API URL: ${API_URL}`);
-    console.log(`Token available: ${!!token}`);
+
     
     const response = await fetch(`${API_URL}/api/workout-plans/${userId}`, {
       headers: {
@@ -134,7 +132,6 @@ type CalendarView = 'month' | 'week' | 'day' | 'agenda';
 export default function WorkoutsPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlan[]>([]);
-  console.log("🚀 ~ WorkoutsPage ~ workoutPlans:", workoutPlans)
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -148,6 +145,8 @@ export default function WorkoutsPage() {
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [highlightedDate, setHighlightedDate] = useState(new Date());
   const [showCreateWorkoutModal, setShowCreateWorkoutModal] = useState(false);
+  
+
 
   
   // Timer effect
@@ -184,7 +183,7 @@ export default function WorkoutsPage() {
           userIdType: userId !== null ? typeof userId : 'null'
         });
 
-        const plans = await fetchUserWorkoutPlan(userId);
+        const plans = await fetchUserWorkoutPlan(userId,user!.token!);
         console.log(`Received ${plans.length} workout plans`);
         setWorkoutPlans(plans);
 
@@ -231,14 +230,6 @@ export default function WorkoutsPage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Reset time part
 
-<<<<<<< HEAD
-    for (let week = 0; week < plan.durationWeeks; week++) {
-      plan.sessions.forEach(session => {
-        if (session.dayNumber > 0) {
-          const sessionDate = new Date(today);
-          const dayOffset = (session.dayNumber - todayDayOfWeek + 7) % 7;
-          sessionDate.setDate(today.getDate() + (week * 7) + dayOffset);
-=======
     // Start counting days from 1 (today) regardless of the actual day of week
     const totalDays = plan.durationWeeks * 7;
 
@@ -248,7 +239,6 @@ export default function WorkoutsPage() {
       
       // Calculate the day number (1-7) based on offset from today
       const dayNumber = (dayOffset % 7) + 1;
->>>>>>> 56e16c0db77bbb0e018f7cfb2c2b681e13dab45a
 
       // Find session for this day number
       const session = plan.sessions.find(s => s.dayNumber === dayNumber);

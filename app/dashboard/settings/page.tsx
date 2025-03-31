@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { User, Settings, Bell, LogOut, Camera } from "lucide-react"
+import { User, Settings, Bell, LogOut, Loader2, Shield, Save, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +24,8 @@ import {
 import { useAuth } from "@/app/contexts/AuthContext"
 import { toast } from "@/components/ui/use-toast"
 import { Toaster } from "@/components/ui/toaster"
+import { Switch } from "@/components/ui/switch"
+import { TUser } from "@/lib/auth"
 
 // Define a complete profile data type that includes password fields
 interface ProfileDataWithPassword {
@@ -47,9 +48,22 @@ interface ProfileDataWithPassword {
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { user, loading, isAuthenticated, logout } = useAuth()
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { user, loading: authLoading, isAuthenticated, logout, apiRequest } = useAuth()
+  const [saving, setSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState("profile")
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [hasChanges, setHasChanges] = useState(false)
+  const [originalData, setOriginalData] = useState<ProfileDataWithPassword | null>(null)
   
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  //fetch user profile data from the server
+  const fetchUserData = async (id: string) => {
+    const response = await apiRequest(`${API_URL}/api/users/${id}`)
+    if (!response.ok) {
+      throw new Error("Failed to fetch user data")
+    }
+    return response.json()
+  }
   // Profile state with password fields included
   const [profileData, setProfileData] = useState<ProfileDataWithPassword>({
     fullName: "",
@@ -68,116 +82,132 @@ export default function SettingsPage() {
     medicalConditions: "",
     dietaryRestrictions: ""
   })
-  
-  const [saving, setSaving] = useState(false)
-  // Initialize profile image from localStorage for persistence
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-
-  // Add a function to get user-specific localStorage key
-  const getUserSpecificKey = (key: string) => {
-    if (!user) return key;
-    const userId = user.id || user.userId;
-    return `${key}_${userId}`;
-  };
-  
-  // Add this effect to load the profile image when the user is loaded
-  useEffect(() => {
-    if (user) {
-      const userId = user.id || user.userId;
-      if (userId) {
-        // Use user-specific key for profile image
-        const userProfileImage = localStorage.getItem(getUserSpecificKey("profileImage"));
-        setProfileImage(userProfileImage);
-      }
-    }
-  }, [user]);
-
   // Effect to populate form with user data when available
   useEffect(() => {
-    if (user) {
-      setProfileData({
-        ...profileData, // Keep password fields as they are
-        fullName: user.fullName || "",
-        email: user.email || "",
-        dateOfBirth: user.dateOfBirth || "",
-        gender: user.gender || "",
-        height: user.height?.toString() || "",
-        weight: user.weight?.toString() || "",
-        fitnessGoal: user.fitnessGoal || "weight_loss",
-        experienceLevel: user.experienceLevel || "beginner",
-        preferredWorkoutType: user.preferredWorkoutType || "home",
-        activityLevel: user.activityLevel || "sedentary",
-        medicalConditions: user.medicalConditions || "",
-        dietaryRestrictions: user.dietaryRestrictions || ""
-      })
+    const fetchUserProfile = async () => {
+      if (user) {
+        try {
+          if (!user.id) return 
+          console.log("🚀 ~ fetchUserProfile ~ user:", user)
+          const userData = await fetchUserData(user.id)
+          console.log("🚀 ~ fetchUserProfile ~ userData:", userData)
+          if (!userData) return console.error("User data is missing")
+          // Populate profile data with user data
+          const formattedData = {
+            fullName: userData.name || "",
+            email: userData.email || "",
+            dateOfBirth: userData.dateOfBirth ? new Date(userData.dateOfBirth).toISOString().slice(0, 10) : "",
+            gender: userData.gender || "",
+            height: userData.height?.toString() || "",
+            weight: userData.weight?.toString() || "",
+            fitnessGoal: userData.fitnessGoal || "weight_loss",
+            experienceLevel: userData.experienceLevel || "beginner",
+            preferredWorkoutType: userData.preferredWorkoutType || "home",
+            activityLevel: userData.activityLevel || "sedentary",
+            medicalConditions: userData.medicalConditions || "",
+            dietaryRestrictions: userData.dietaryRestrictions || "",
+            password: "",
+            newPassword: "",
+            confirmPassword: ""
+          }
+          setProfileData(formattedData)
+          setOriginalData(formattedData) // Save original data
+          setHasChanges(false)
+        } catch (error) {
+          console.error("Error fetching user profile:", error)
+          toast({
+            title: "Error",
+            description: "There was a problem fetching your profile data.",
+            variant: "destructive",
+          })
+        }
+      }
     }
+    fetchUserProfile();
   }, [user])
 
-  // Handle photo change
-  const handlePhotoChange = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click()
+  useEffect(() => {
+    if (originalData) {
+      const passwordFieldsChanged = profileData.password || profileData.newPassword || profileData.confirmPassword
+      const dataChanged = Object.keys(originalData).some(key => {
+        if (key === 'password' || key === 'newPassword' || key === 'confirmPassword') return false
+        return originalData[key as keyof ProfileDataWithPassword] !== profileData[key as keyof ProfileDataWithPassword]
+      })
+      setHasChanges(dataChanged || !!passwordFieldsChanged)
     }
+  }, [profileData, originalData])
+
+  const handleProfileDataChange = (field: keyof ProfileDataWithPassword, value: string) => {
+    setProfileData(prev => ({
+      ...prev,
+      [field]: value
+    }))
   }
 
-  // Handle file selection with persistent storage
-  const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && user) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          const imageData = e.target.result as string;
-          // Save profile image to localStorage with user-specific key
-          const userId = user.id || user.userId;
-          if (userId) {
-            localStorage.setItem(getUserSpecificKey("profileImage"), imageData);
-            setProfileImage(imageData);
-          }
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Handle profile form submission
-  const handleProfileUpdate = async () => {
-    if (!user) return
+  // Validate form data
+  const validateForm = () => {
+    const errors: Record<string, string> = {}
     
-    // Validate password if trying to change it
+    // Basic email validation
+    if (profileData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileData.email)) {
+      errors.email = "Please enter a valid email address"
+    }
+    
+    // Password validation
     if (profileData.newPassword) {
+      if (profileData.newPassword.length < 8) {
+        errors.newPassword = "Password must be at least 8 characters long"
+      }
+      
       if (profileData.newPassword !== profileData.confirmPassword) {
-        toast({
-          title: "Password Mismatch",
-          description: "New password and confirmation do not match.",
-          variant: "destructive",
-        })
-        return
+        errors.confirmPassword = "Passwords do not match"
       }
       
       if (!profileData.password) {
-        toast({
-          title: "Current Password Required",
-          description: "Please enter your current password to change to a new one.",
-          variant: "destructive",
-        })
-        return
+        errors.password = "Current password is required to set a new password"
       }
+    }
+    
+    // Numeric validation for height and weight
+    if (profileData.height && isNaN(Number(profileData.height))) {
+      errors.height = "Height must be a number"
+    }
+    
+    if (profileData.weight && isNaN(Number(profileData.weight))) {
+      errors.weight = "Weight must be a number"
+    }
+    
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
 
-      // Verify current password is correct
+  // Handle profile form submission
+  const handleProfileUpdate = async () => {
+    if (!user || !hasChanges) return
+    
+    // Validate form data
+    if (!validateForm()) {
+      toast({
+        title: "Validation Error",
+        description: "Please correct the errors in the form.",
+        variant: "destructive",
+      })
+      return
+    }
+    
+    // Validate password if trying to change it
+    if (profileData.newPassword) {
       try {
-        const loginCheck = await fetch(`http://localhost:8000/api/auth/login`, {
+        // Verify current password
+        const verifyResult = await apiRequest(`${API_URL}/api/auth/verify-password`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
           body: JSON.stringify({
             email: profileData.email,
             password: profileData.password
           })
         })
         
-        if (!loginCheck.ok) {
+        if (!verifyResult.ok) {
           toast({
             title: "Incorrect Password",
             description: "Your current password is incorrect. Please try again.",
@@ -198,7 +228,7 @@ export default function SettingsPage() {
     
     setSaving(true)
     try {
-      // Build the update data object based on your backend fields
+      // Build the update data object
       const updateData: any = {
         fullName: profileData.fullName,
         email: profileData.email,
@@ -211,7 +241,7 @@ export default function SettingsPage() {
         preferredWorkoutType: profileData.preferredWorkoutType,
         activityLevel: profileData.activityLevel,
         medicalConditions: profileData.medicalConditions,
-        dietaryRestrictions: profileData.dietaryRestrictions
+        dietaryRestrictions: profileData.dietaryRestrictions,
       }
       
       // Add password fields if changing password
@@ -225,25 +255,10 @@ export default function SettingsPage() {
         throw new Error("User ID is missing")
       }
       
-      const response = await fetch(`http://localhost:8000/api/users/${userId}`, {
+      const response = await apiRequest(`${API_URL}/api/users/${userId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
         body: JSON.stringify(updateData)
       })
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update profile')
-      }
-      
-      // Update local storage with new user data (excluding password)
-      const { password: _, newPassword: __, confirmPassword: ___, ...userDataToStore } = updateData
-      const storedUser = JSON.parse(localStorage.getItem('user') || '{}')
-      const newUserData = { ...storedUser, ...userDataToStore }
-      localStorage.setItem('user', JSON.stringify(newUserData))
       
       // Clear password fields
       setProfileData({
@@ -253,86 +268,29 @@ export default function SettingsPage() {
         confirmPassword: ""
       })
       
+      setOriginalData(profileData) // Update original data
+      setHasChanges(false) // Reset changes flag
+      
       // Show success message with different content based on whether password was changed
       if (updateData.password) {
-        // Create a custom alert dialog for password change instead of toast
-        const passwordChangeAlert = document.createElement('div');
-        passwordChangeAlert.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-        passwordChangeAlert.innerHTML = `
-          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full mx-4 transform transition-all animate-bounce-once">
-            <div class="text-center">
-              <div class="w-16 h-16 bg-red-600 rounded-full mx-auto flex items-center justify-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Password Changed Successfully!</h3>
-              <div class="h-2 w-full bg-gray-200 rounded-full mt-4 mb-3">
-                <div class="h-full bg-red-600 rounded-full w-0 progress-bar"></div>
-              </div>
-              <p class="text-gray-600 dark:text-gray-300 mb-6">
-                Your profile has been updated with your new password. For security reasons, you'll be redirected to the login page in a few seconds.
-              </p>
-              <p class="font-semibold text-red-600 dark:text-red-400 mb-2">
-                Please sign in again with your new password.
-              </p>
-            </div>
-          </div>
-        `;
-        document.body.appendChild(passwordChangeAlert);
-        
-        // Animate the progress bar
-        const progressBar = passwordChangeAlert.querySelector('.progress-bar');
-        let width = 0;
-        const interval = setInterval(() => {
-          if (width >= 100) {
-            clearInterval(interval);
-          } else {
-            width += 2;
-
-            if (progressBar && progressBar instanceof HTMLElement) progressBar.style.width = width + '%';
-
-          }
-        }, 80); // Will take about 4 seconds to fill
-        
-        // Redirect after animation completes
-        setTimeout(() => {
-          if (passwordChangeAlert) {
-            passwordChangeAlert.classList.add('fade-out');
-            setTimeout(() => {
-              document.body.removeChild(passwordChangeAlert);
-              logout();
-              router.push("/login");
-            }, 500);
-          }
-        }, 4500);
-        
-        // Add animation keyframes
-        const style = document.createElement('style');
-        style.textContent = `
-          @keyframes bounce-once {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-15px); }
-          }
-          .animate-bounce-once {
-            animation: bounce-once 1s ease-in-out;
-          }
-          .fade-out {
-            opacity: 0;
-            transition: opacity 0.5s;
-          }
-          .progress-bar {
-            transition: width 0.1s linear;
-          }
-        `;
-        document.head.appendChild(style);
-      } else {
-        // Standard success toast for profile updates only
         toast({
-          title: "Profile Updated Successfully!",
-          description: "Your profile information has been saved.",
+          title: "Password Changed",
+          description: "Your password has been updated successfully. You'll need to sign in again.",
           variant: "default",
-          duration: 3000,
+          duration: 5000,
+          className: "bg-amber-600 text-white border-amber-700",
+        })
+        
+        // Logout after 5 seconds
+        setTimeout(() => {
+          logout()
+          router.push("/login")
+        }, 5000)
+      } else {
+        toast({
+          title: "Profile Updated",
+          description: "Your profile information has been saved successfully.",
+          variant: "default",
           className: "bg-green-600 text-white border-green-700",
         })
       }
@@ -350,7 +308,7 @@ export default function SettingsPage() {
   }
 
   // Handle user logout
-  const handleLogout = () => {
+  const handleLogout = async () => {
     logout()
     router.push("/login")
   }
@@ -358,21 +316,14 @@ export default function SettingsPage() {
   // Handle account deletion
   const handleDeleteAccount = async () => {
     try {
-      if (!user || !user.userId) {
+      if (!user?.id) {
         throw new Error("User ID is missing")
       }
       
-      const userId = user.id || user.userId
-      const response = await fetch(`http://localhost:8000/api/users/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const userId = user.id
+      await apiRequest(`${API_URL}/api/users/${userId}`, {
+        method: 'DELETE'
       })
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete account')
-      }
       
       // Log user out after account deletion
       logout()
@@ -395,10 +346,27 @@ export default function SettingsPage() {
     }
   }
 
-  if (loading) {
-    return <div className="container mx-auto p-6 flex justify-center items-center min-h-screen">
-      <p>Loading your profile...</p>
-    </div>
+  // Display error message for field
+  const getFieldError = (fieldName: string) => {
+    if (formErrors[fieldName]) {
+      return (
+        <p className="text-red-500 text-sm mt-1 flex items-center">
+          <AlertTriangle className="h-3 w-3 mr-1" /> {formErrors[fieldName]}
+        </p>
+      )
+    }
+    return null
+  }
+
+  if (authLoading) {
+    return (
+      <div className="container mx-auto p-6 flex justify-center items-center min-h-screen">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto text-red-500" />
+          <p className="text-xl">Loading your profile...</p>
+        </div>
+      </div>
+    )
   }
   
   if (!isAuthenticated) {
@@ -433,11 +401,15 @@ export default function SettingsPage() {
         </AlertDialog>
       </div>
 
-      <Tabs defaultValue="profile" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="profile">
             <User className="mr-2 h-4 w-4" />
             Profile
+          </TabsTrigger>
+          <TabsTrigger value="security">
+            <Shield className="mr-2 h-4 w-4" />
+            Security
           </TabsTrigger>
           <TabsTrigger value="preferences">
             <Settings className="mr-2 h-4 w-4" />
@@ -453,37 +425,9 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Your Profile</CardTitle>
-              <CardDescription>View and update your profile information</CardDescription>
+              <CardDescription>View and update your personal information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center space-x-4">
-                <Avatar className="h-24 w-24">
-                  {profileImage ? (
-                    <AvatarImage src={profileImage} alt="Profile" />
-                  ) : (
-                    <AvatarImage src="/api/placeholder/200/200" alt="Profile" />
-                  )}
-                  <AvatarFallback>{profileData.fullName.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <Button variant="outline" onClick={handlePhotoChange}>
-                    <Camera className="mr-2 h-4 w-4" /> Change Photo
-                  </Button>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    accept="image/*" 
-                    className="hidden" 
-                    onChange={handleFileSelected}
-                  />
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Click to upload a profile picture
-                  </p>
-                </div>
-              </div>
-              
-              <Separator />
-              
               <div>
                 <h3 className="text-lg font-medium">Personal Information</h3>
                 <div className="grid gap-4 mt-3 md:grid-cols-2">
@@ -492,8 +436,10 @@ export default function SettingsPage() {
                     <Input 
                       id="fullName" 
                       value={profileData.fullName}
-                      onChange={(e) => setProfileData({...profileData, fullName: e.target.value})}
+                      onChange={(e) => handleProfileDataChange('fullName', e.target.value)}
+                      className={formErrors.fullName ? "border-red-500" : ""}
                     />
+                    {getFieldError('fullName')}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
@@ -501,8 +447,10 @@ export default function SettingsPage() {
                       id="email" 
                       type="email" 
                       value={profileData.email}
-                      onChange={(e) => setProfileData({...profileData, email: e.target.value})}
+                      onChange={(e) => handleProfileDataChange('email', e.target.value)}
+                      className={formErrors.email ? "border-red-500" : ""}
                     />
+                    {getFieldError('email')}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="dateOfBirth">Date of Birth</Label>
@@ -510,14 +458,14 @@ export default function SettingsPage() {
                       id="dateOfBirth" 
                       type="date" 
                       value={profileData.dateOfBirth}
-                      onChange={(e) => setProfileData({...profileData, dateOfBirth: e.target.value})}
+                      onChange={(e) => handleProfileDataChange('dateOfBirth', e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="gender">Gender</Label>
                     <Select 
                       value={profileData.gender} 
-                      onValueChange={(value) => setProfileData({...profileData, gender: value})}
+                      onValueChange={(value) => handleProfileDataChange('gender', value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select gender" />
@@ -536,8 +484,10 @@ export default function SettingsPage() {
                       id="height" 
                       type="number" 
                       value={profileData.height}
-                      onChange={(e) => setProfileData({...profileData, height: e.target.value})}
+                      onChange={(e) => handleProfileDataChange('height', e.target.value)}
+                      className={formErrors.height ? "border-red-500" : ""}
                     />
+                    {getFieldError('height')}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="weight">Weight (kg)</Label>
@@ -545,8 +495,10 @@ export default function SettingsPage() {
                       id="weight" 
                       type="number" 
                       value={profileData.weight}
-                      onChange={(e) => setProfileData({...profileData, weight: e.target.value})}
+                      onChange={(e) => handleProfileDataChange('weight', e.target.value)}
+                      className={formErrors.weight ? "border-red-500" : ""}
                     />
+                    {getFieldError('weight')}
                   </div>
                 </div>
               </div>
@@ -560,7 +512,7 @@ export default function SettingsPage() {
                     <Label htmlFor="fitnessGoal">Fitness Goal</Label>
                     <Select 
                       value={profileData.fitnessGoal} 
-                      onValueChange={(value) => setProfileData({...profileData, fitnessGoal: value})}
+                      onValueChange={(value) => handleProfileDataChange('fitnessGoal', value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select a goal" />
@@ -577,7 +529,7 @@ export default function SettingsPage() {
                     <Label htmlFor="activityLevel">Activity Level</Label>
                     <Select 
                       value={profileData.activityLevel} 
-                      onValueChange={(value) => setProfileData({...profileData, activityLevel: value})}
+                      onValueChange={(value) => handleProfileDataChange('activityLevel', value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select activity level" />
@@ -595,7 +547,7 @@ export default function SettingsPage() {
                     <Label htmlFor="experienceLevel">Experience Level</Label>
                     <Select 
                       value={profileData.experienceLevel} 
-                      onValueChange={(value) => setProfileData({...profileData, experienceLevel: value})}
+                      onValueChange={(value) => handleProfileDataChange('experienceLevel', value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select experience level" />
@@ -611,7 +563,7 @@ export default function SettingsPage() {
                     <Label htmlFor="preferredWorkoutType">Preferred Workout Type</Label>
                     <Select 
                       value={profileData.preferredWorkoutType} 
-                      onValueChange={(value) => setProfileData({...profileData, preferredWorkoutType: value})}
+                      onValueChange={(value) => handleProfileDataChange('preferredWorkoutType', value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select workout type" />
@@ -630,7 +582,7 @@ export default function SettingsPage() {
                   <Input 
                     id="medicalConditions" 
                     value={profileData.medicalConditions}
-                    onChange={(e) => setProfileData({...profileData, medicalConditions: e.target.value})}
+                    onChange={(e) => handleProfileDataChange('medicalConditions', e.target.value)}
                   />
                 </div>
                 <div className="space-y-2 mt-4">
@@ -638,82 +590,133 @@ export default function SettingsPage() {
                   <Input 
                     id="dietaryRestrictions" 
                     value={profileData.dietaryRestrictions}
-                    onChange={(e) => setProfileData({...profileData, dietaryRestrictions: e.target.value})}
+                    onChange={(e) => handleProfileDataChange('dietaryRestrictions', e.target.value)}
                   />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col sm:flex-row justify-between gap-4">
+              <Button 
+                onClick={handleProfileUpdate} 
+                disabled={saving || !hasChanges}
+                className={`w-full sm:w-auto ${hasChanges ? "bg-red-500 hover:bg-red-600" : "bg-red-300"}`}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving Changes...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" /> Save Profile
+                  </>
+                )}
+              </Button>
+              
+              <Button variant="outline" onClick={() => setActiveTab("security")} className="w-full sm:w-auto">
+                <Shield className="mr-2 h-4 w-4" /> Manage Security
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="security" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Security Settings</CardTitle>
+              <CardDescription>Manage your password and account security</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <h3 className="text-lg font-medium">Change Password</h3>
+                <p className="text-sm text-muted-foreground mb-3">Update your password to keep your account secure</p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="current_password">Current Password</Label>
+                    <Input 
+                      id="current_password" 
+                      type="password"
+                      placeholder="Enter your current password"
+                      value={profileData.password}
+                      onChange={(e) => handleProfileDataChange('password', e.target.value)}
+                      className={formErrors.password ? "border-red-500" : ""}
+                    />
+                    {getFieldError('password')}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new_password">New Password</Label>
+                    <Input 
+                      id="new_password" 
+                      type="password"
+                      placeholder="Enter new password"
+                      value={profileData.newPassword}
+                      onChange={(e) => handleProfileDataChange('newPassword', e.target.value)}
+                      className={formErrors.newPassword ? "border-red-500" : ""}
+                    />
+                    {getFieldError('newPassword')}
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="confirm_password">Confirm New Password</Label>
+                    <Input 
+                      id="confirm_password" 
+                      type="password"
+                      placeholder="Re-enter new password"
+                      value={profileData.confirmPassword}
+                      onChange={(e) => handleProfileDataChange('confirmPassword', e.target.value)}
+                      className={formErrors.confirmPassword ? "border-red-500" : ""}
+                    />
+                    {getFieldError('confirmPassword')}
+                  </div>
                 </div>
               </div>
               
               <Separator />
               
               <div>
-                <h3 className="text-lg font-medium">Change Password (Optional)</h3>
-                <p className="text-sm text-muted-foreground mb-3">Fill in these fields only if you want to change your password</p>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="current_password">Your Current Password</Label>
-                    <Input 
-                      id="current_password" 
-                      type="text"
-                      placeholder="Enter your current password"
-                      value={profileData.password}
-                      onChange={(e) => setProfileData({...profileData, password: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="new_password">New Password</Label>
-                    <Input 
-                      id="new_password" 
-                      type="text"
-                      placeholder="Enter new password"
-                      value={profileData.newPassword}
-                      onChange={(e) => setProfileData({...profileData, newPassword: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="confirm_password">Confirm New Password</Label>
-                    <Input 
-                      id="confirm_password" 
-                      type="text"
-                      placeholder="Re-enter new password"
-                      value={profileData.confirmPassword}
-                      onChange={(e) => setProfileData({...profileData, confirmPassword: e.target.value})}
-                    />
-                  </div>
-                </div>
+                <h3 className="text-lg font-medium">Account Deletion</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Permanently delete your account and all associated data
+                </p>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">Delete My Account</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete your account and remove all data from
+                        our servers.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction 
+                        className="bg-red-500 hover:bg-red-600"
+                        onClick={handleDeleteAccount}
+                      >
+                        Yes, Delete My Account
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </CardContent>
-            <CardFooter className="flex justify-between">
+            <CardFooter>
               <Button 
                 onClick={handleProfileUpdate} 
-                disabled={saving}
-                className="flex-1 mr-2 bg-red-500 hover:bg-red-600"
+                disabled={saving || !hasChanges}
+                className="bg-red-500 hover:bg-red-600"
               >
-                {saving ? "Saving Changes..." : "Save All Changes"}
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving Changes...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" /> Save Security Settings
+                  </>
+                )}
               </Button>
-              
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">Delete Account</Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete your account and remove all data from
-                      our servers.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
-                      className="bg-red-500 hover:bg-red-600"
-                      onClick={handleDeleteAccount}
-                    >
-                      Yes, Delete My Account
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
             </CardFooter>
           </Card>
         </TabsContent>
@@ -752,10 +755,26 @@ export default function SettingsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="dark-mode">Dark Mode</Label>
+                    <p className="text-sm text-muted-foreground">Enable dark mode for the app</p>
+                  </div>
+                  <Switch id="dark-mode" defaultChecked={false} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="analytics">Analytics</Label>
+                    <p className="text-sm text-muted-foreground">Help us improve by allowing anonymous analytics</p>
+                  </div>
+                  <Switch id="analytics" defaultChecked={true} />
+                </div>
               </div>
             </CardContent>
             <CardFooter>
-              <Button className="bg-red-500 hover:bg-red-600">Save Preferences</Button>
+              <Button className="bg-red-500 hover:bg-red-600">
+                <Save className="mr-2 h-4 w-4" /> Save Preferences
+              </Button>
             </CardFooter>
           </Card>
         </TabsContent>
@@ -767,51 +786,65 @@ export default function SettingsPage() {
               <CardDescription>Manage your notification preferences</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex flex-col space-y-1.5">
-                  <Label htmlFor="workout-reminders">Workout Reminders</Label>
-                  <Select defaultValue="daily">
-                    <SelectTrigger id="workout-reminders">
-                      <SelectValue placeholder="Select frequency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="off">Off</SelectItem>
-                      <SelectItem value="daily">Daily</SelectItem>
-                      <SelectItem value="workout-days">Workout Days Only</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Push Notifications</Label>
+                      <p className="text-sm text-muted-foreground">Receive notifications on your device</p>
+                    </div>
+                    <Switch defaultChecked={true} />
+                  </div>
                 </div>
-                <div className="flex flex-col space-y-1.5">
-                  <Label htmlFor="progress-updates">Progress Updates</Label>
-                  <Select defaultValue="weekly">
-                    <SelectTrigger id="progress-updates">
-                      <SelectValue placeholder="Select frequency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="off">Off</SelectItem>
-                      <SelectItem value="daily">Daily</SelectItem>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-col space-y-1.5">
-                  <Label htmlFor="email-preferences">Email Notifications</Label>
-                  <Select defaultValue="important">
-                    <SelectTrigger id="email-preferences">
-                      <SelectValue placeholder="Select email preference" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Notifications</SelectItem>
-                      <SelectItem value="important">Important Only</SelectItem>
-                      <SelectItem value="none">None</SelectItem>
-                    </SelectContent>
-                  </Select>
+                
+                <div className="space-y-4">
+                  <div className="flex flex-col space-y-1.5">
+                    <Label htmlFor="workout-reminders">Workout Reminders</Label>
+                    <Select defaultValue="daily">
+                      <SelectTrigger id="workout-reminders">
+                        <SelectValue placeholder="Select frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="off">Off</SelectItem>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="workout-days">Workout Days Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col space-y-1.5">
+                    <Label htmlFor="progress-updates">Progress Updates</Label>
+                    <Select defaultValue="weekly">
+                      <SelectTrigger id="progress-updates">
+                        <SelectValue placeholder="Select frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="off">Off</SelectItem>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col space-y-1.5">
+                    <Label htmlFor="email-preferences">Email Notifications</Label>
+                    <Select defaultValue="important">
+                      <SelectTrigger id="email-preferences">
+                        <SelectValue placeholder="Select email preference" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Notifications</SelectItem>
+                        <SelectItem value="important">Important Only</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </CardContent>
             <CardFooter>
-              <Button className="bg-red-500 hover:bg-red-600">Save Notification Settings</Button>
+              <Button className="bg-red-500 hover:bg-red-600">
+                <Save className="mr-2 h-4 w-4" /> Save Notification Settings
+              </Button>
             </CardFooter>
           </Card>
         </TabsContent>
