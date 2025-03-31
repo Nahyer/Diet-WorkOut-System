@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Brain, Target, Users, TrendingUp, ChevronRight, Github, Linkedin, Twitter } from "lucide-react"
+import { Brain, Target, Users, TrendingUp, ChevronRight, Github } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,22 +34,14 @@ export default function About() {
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-black/60">
-<<<<<<< HEAD
-        <Image
-            src="/images/gym-equipment.jpg"
-            alt="Gym Equipment"
-            fill
-            className="object-cover mix-blend-overlay"
-=======
-          <Image
-            src="/images/gym-equipment.jpg"
-            alt="Gym Equipment"
-            fill
-            priority
-            className="w-full h-full object-cover mix-blend-overlay"
->>>>>>> 56e16c0db77bbb0e018f7cfb2c2b681e13dab45a
-          />
+<div className="absolute inset-0 bg-gradient-to-r from-black/80 to-black/60">
+  <Image
+    src="/images/gym-equipment.jpg"
+    alt="Gym Equipment"
+    fill
+    priority
+    className="w-full h-full object-cover mix-blend-overlay"
+  />
         </div>
         <div className="relative z-10 text-center text-white max-w-4xl mx-auto px-4">
           <motion.h1
@@ -219,37 +211,22 @@ export default function About() {
 
 function TeamMemberCard({ image, name, role, bio }: { image: string; name: string; role: string; bio: string }) {
   return (
-    <Card className="overflow-hidden group">
-<<<<<<< HEAD
-      <div className="relative overflow-hidden h-64">
-=======
-      <div className="relative h-64 overflow-hidden">
->>>>>>> 56e16c0db77bbb0e018f7cfb2c2b681e13dab45a
-        <Image
-          src={image || "/placeholder.svg"}
-          alt={name}
-          fill
-<<<<<<< HEAD
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
-          sizes="(max-width: 768px) 100vw, 33vw"
-=======
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw"
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
-          priority={false}
->>>>>>> 56e16c0db77bbb0e018f7cfb2c2b681e13dab45a
-        />
+<Card className="overflow-hidden group">
+  <div className="relative h-64 overflow-hidden">
+    <Image
+      src={image || "/placeholder.svg"}
+      alt={name}
+      layout="fill"
+      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw"
+      className="object-cover transition-transform duration-300 group-hover:scale-105"
+      priority={false}
+    />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
           <div className="flex gap-4 text-white">
-            <a href="#" className="hover:text-red-500 transition-colors">
-              <Twitter className="h-5 w-5" />
-            </a>
-            <a href="#" className="hover:text-red-500 transition-colors">
-              <Linkedin className="h-5 w-5" />
-            </a>
-            <a href="#" className="hover:text-red-500 transition-colors">
-              <Github className="h-5 w-5" />
-            </a>
-          </div>
+  <a href="#" className="hover:text-red-500 transition-colors">
+    <Github className="h-6 w-6" />
+  </a>
+</div>
         </div>
       </div>
       <CardContent className="p-6">

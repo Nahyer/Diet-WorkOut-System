@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Search, Filter, MoreHorizontal, Download, Trash2, Mail, Ban, Shield, Activity } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -99,7 +99,7 @@ export default function UserManagement() {
   };
 
   // Load users from API
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setIsLoading(true);
       const token = localStorage.getItem("token");
@@ -119,7 +119,7 @@ export default function UserManagement() {
           lastActive: user.updatedAt ? new Date(user.updatedAt).toISOString().split('T')[0] : 'Never',
           status: "active", // All users from getActiveUsers are active
         };
-      });
+      }, []);
       
       setUsers(processedUsers);
       setFilteredUsers(processedUsers);
@@ -133,13 +133,13 @@ export default function UserManagement() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     if (isAuthenticated && isAdmin) {
       loadUsers();
     }
-  }, [isAuthenticated, isAdmin]);
+  }, [isAuthenticated, isAdmin, loadUsers]);
 
   // Filter users based on search query and filters
   useEffect(() => {
@@ -500,7 +500,7 @@ export default function UserManagement() {
                               />
                               <ChangeRoleModal 
                                 user={user}
-                                onRoleChanged={loadUsers}
+                                onRoleChanged={() => { loadUsers(); }}
                                 trigger={
                                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                     <Shield className="mr-2 h-4 w-4" /> Change Role
@@ -516,7 +516,7 @@ export default function UserManagement() {
                               </DropdownMenuItem>
                               <SuspendUserModal 
                                 user={user}
-                                onUserSuspended={loadUsers}
+                                onUserSuspended={() => loadUsers()}
                                 trigger={
                                   <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
                                     <Ban className="mr-2 h-4 w-4" /> Suspend User
@@ -597,3 +597,6 @@ export default function UserManagement() {
     </div>
   )
 }
+
+// Removed duplicate and redundant function implementations.
+// Remove this incorrect implementation of useCallback

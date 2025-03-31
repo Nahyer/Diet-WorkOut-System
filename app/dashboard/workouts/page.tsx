@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/app/contexts/AuthContext"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import Image from "next/image"
 
 import "react-big-calendar/lib/css/react-big-calendar.css"
 
@@ -231,24 +232,15 @@ export default function WorkoutsPage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Reset time part
 
-<<<<<<< HEAD
-    for (let week = 0; week < plan.durationWeeks; week++) {
-      plan.sessions.forEach(session => {
-        if (session.dayNumber > 0) {
-          const sessionDate = new Date(today);
-          const dayOffset = (session.dayNumber - todayDayOfWeek + 7) % 7;
-          sessionDate.setDate(today.getDate() + (week * 7) + dayOffset);
-=======
-    // Start counting days from 1 (today) regardless of the actual day of week
-    const totalDays = plan.durationWeeks * 7;
+// Start counting days from 1 (today) regardless of the actual day of week
+const totalDays = plan.durationWeeks * 7;
 
-    for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
-      const currentDate = new Date(today);
-      currentDate.setDate(today.getDate() + dayOffset);
-      
-      // Calculate the day number (1-7) based on offset from today
-      const dayNumber = (dayOffset % 7) + 1;
->>>>>>> 56e16c0db77bbb0e018f7cfb2c2b681e13dab45a
+for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
+  const currentDate = new Date(today);
+  currentDate.setDate(today.getDate() + dayOffset);
+  
+  // Calculate the day number (1-7) based on offset from today
+  const dayNumber = (dayOffset % 7) + 1;
 
       // Find session for this day number
       const session = plan.sessions.find(s => s.dayNumber === dayNumber);
@@ -876,10 +868,13 @@ export default function WorkoutsPage() {
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredExercises.map((exercise) => (
                   <Card key={exercise.exerciseId} className="overflow-hidden">
-                    <img
+                    <Image
                       src={exercise.imageUrl || "/api/placeholder/400/250"}
                       alt={exercise.name}
                       className="aspect-video object-cover"
+                      width={400}
+                      height={250}
+                      layout="responsive"
                     />
                     <CardHeader>
                       <CardTitle>{exercise.name}</CardTitle>

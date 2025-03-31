@@ -1,7 +1,7 @@
 // components/admin/user-activity-modal.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   Dialog,
   DialogContent,
@@ -28,14 +28,7 @@ export function UserActivityModal({ user, trigger }: UserActivityModalProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
 
-  // Load user activities when modal opens
-  useEffect(() => {
-    if (open) {
-      loadUserActivities();
-    }
-  }, [open]);
-
-  const loadUserActivities = async () => {
+  const loadUserActivities = useCallback(async () => {
     setIsLoading(true);
     
     try {
@@ -65,7 +58,14 @@ export function UserActivityModal({ user, trigger }: UserActivityModalProps) {
       });
       setIsLoading(false);
     }
-  };
+  }, [toast, user.userId]);
+
+  // Load user activities when modal opens
+  useEffect(() => {
+    if (open) {
+      loadUserActivities();
+    }
+  }, [open, loadUserActivities]);
 
   // Format timestamp to readable date
   const formatTimestamp = (timestamp: string) => {

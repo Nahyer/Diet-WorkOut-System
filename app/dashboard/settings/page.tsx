@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { User, Settings, Bell, LogOut, Camera } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -74,11 +74,11 @@ export default function SettingsPage() {
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
   // Add a function to get user-specific localStorage key
-  const getUserSpecificKey = (key: string) => {
+  const getUserSpecificKey = useCallback((key: string) => {
     if (!user) return key;
     const userId = user.id || user.userId;
     return `${key}_${userId}`;
-  };
+  }, [user]);
   
   // Add this effect to load the profile image when the user is loaded
   useEffect(() => {
@@ -90,13 +90,13 @@ export default function SettingsPage() {
         setProfileImage(userProfileImage);
       }
     }
-  }, [user]);
+  }, [user, getUserSpecificKey]);
 
   // Effect to populate form with user data when available
   useEffect(() => {
     if (user) {
-      setProfileData({
-        ...profileData, // Keep password fields as they are
+      setProfileData((prevProfileData) => ({
+        ...prevProfileData, // Keep password fields as they are
         fullName: user.fullName || "",
         email: user.email || "",
         dateOfBirth: user.dateOfBirth || "",
@@ -109,9 +109,9 @@ export default function SettingsPage() {
         activityLevel: user.activityLevel || "sedentary",
         medicalConditions: user.medicalConditions || "",
         dietaryRestrictions: user.dietaryRestrictions || ""
-      })
+      }))
     }
-  }, [user])
+  }, [user, setProfileData])
 
   // Handle photo change
   const handlePhotoChange = () => {
@@ -240,7 +240,7 @@ export default function SettingsPage() {
       }
       
       // Update local storage with new user data (excluding password)
-      const { password: _, newPassword: __, confirmPassword: ___, ...userDataToStore } = updateData
+      const { ...userDataToStore } = updateData
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}')
       const newUserData = { ...storedUser, ...userDataToStore }
       localStorage.setItem('user', JSON.stringify(newUserData))

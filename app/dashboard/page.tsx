@@ -70,20 +70,20 @@ export default function Dashboard() {
   const { user, getUserId, isAuthenticated } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlan | null>(null);
-  const [consumedMeals, setConsumedMeals] = useState<ConsumedMeal[]>([]);
-  const [mealPlans, setMealPlans] = useState<MealPlan[]>([]);
+  const [, setWorkoutPlan] = useState<WorkoutPlan | null>(null);
+  const [, setConsumedMeals] = useState<ConsumedMeal[]>([]);
+  const [, setMealPlans] = useState<MealPlan[]>([]);
   const firstName = user?.fullName ? user.fullName.split(" ")[0] : "User";
 
   // Function to calculate the current streak
-  const calculateStreak = () => {
+  function calculateStreak() {
     // Get the last login date (or streak update) from localStorage
     const lastLoginDate = localStorage.getItem("lastLoginDate");
     const storedStreak = localStorage.getItem("userStreak");
-    
+
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
     let currentStreak = storedStreak ? parseInt(storedStreak) : 0;
-    
+
     if (!lastLoginDate) {
       // First time login, set streak to 1
       currentStreak = 1;
@@ -91,11 +91,11 @@ export default function Dashboard() {
       // Check if the last login was yesterday
       const lastDate = new Date(lastLoginDate);
       const todayDate = new Date(today);
-      
+
       // Calculate the difference in days
       const timeDiff = todayDate.getTime() - lastDate.getTime();
       const dayDiff = Math.floor(timeDiff / (1000 * 3600 * 24));
-      
+
       if (dayDiff === 1) {
         // Consecutive day, increment streak
         currentStreak += 1;
@@ -105,13 +105,13 @@ export default function Dashboard() {
       }
       // If dayDiff === 0, it's the same day, keep streak unchanged
     }
-    
+
     // Save the updated streak and today's date
     localStorage.setItem("userStreak", currentStreak.toString());
     localStorage.setItem("lastLoginDate", today);
-    
+
     return currentStreak;
-  };
+  }
 
   // Function to get today's workout based on the current day number (always starting with day 1)
   const getTodaysWorkout = (workoutPlan: WorkoutPlan | null) => {
