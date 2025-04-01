@@ -6,7 +6,6 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { authService } from "@/app/services/auth"
 import { userService } from "@/app/services/user"
 import { activityService, ActivityTypes } from "@/app/services/activity"
-import { decode } from "next-auth/jwt";
 
 const REDIRECT_URL = {
     DASHBOARD: "/dashboard",

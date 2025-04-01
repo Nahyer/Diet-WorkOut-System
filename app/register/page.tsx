@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -42,7 +42,6 @@ export default function Register() {
 	const [isGoogleAuth, setIsGoogleAuth] = useState(false);
 	const searchParams = useSearchParams();
   const {user} = useAuth();
-	const router = useRouter();
 	const { register } = useAuth();
 
 	const totalSteps = 4;
@@ -75,8 +74,8 @@ export default function Register() {
 			// Pre-fill form data with Google info
 			setFormData((prev) => ({
 				...prev,
-				name: user?.name || prev.name,
-				email: user?.email || prev.email,
+				name: user?.name ?? prev.name,
+				email: user?.email ?? prev.email,
 				// Skip password fields for Google auth
 				// Generate a secure random password that the user won't need
 				password:
@@ -89,7 +88,7 @@ export default function Register() {
 
 			setStep(1);
 		}
-	}, [user]);
+	}, [user, searchParams]);
 
 	const validatePasswords = () => {
 		// Skip password validation for Google auth
@@ -173,7 +172,7 @@ export default function Register() {
 			if (isGoogleAuth) {
 
 				// Register with Google data
-				const response = await register(
+				await register(
           // fullName: formData.name,
 					// 		email: user!.email,
           //     password: formData.password,

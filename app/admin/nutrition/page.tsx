@@ -187,7 +187,7 @@ export default function NutritionManagement() {
       loadNutritionPlans();
       loadMealPlans();
     }
-  }, [isAuthenticated, isAdmin]);
+  }, [isAuthenticated, isAdmin, loadNutritionPlans, loadMealPlans]);
 
   // Filter nutrition plans
   useEffect(() => {

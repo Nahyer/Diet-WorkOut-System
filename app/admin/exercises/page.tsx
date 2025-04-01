@@ -180,6 +180,7 @@ export default function ExerciseManagement() {
   const { isAdmin, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
+  
   // Load exercises from API
   const loadExercises = async () => {
     try {
@@ -198,12 +199,11 @@ export default function ExerciseManagement() {
       setIsLoading(false);
     }
   };
-
   useEffect(() => {
     if (isAuthenticated && isAdmin) {
       loadExercises();
     }
-  }, [isAuthenticated, isAdmin]);
+  }, [isAuthenticated, isAdmin, loadExercises]);
 
   // Filter exercises based on search query and filters
   useEffect(() => {

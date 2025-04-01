@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/app/contexts/AuthContext"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import Image from "next/image"
 
 import "react-big-calendar/lib/css/react-big-calendar.css"
 
@@ -131,7 +132,7 @@ type CalendarView = 'month' | 'week' | 'day' | 'agenda';
 
 export default function WorkoutsPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlan[]>([]);
+  const [workoutPlans,setWorkoutPlans] = useState<WorkoutPlan[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -866,11 +867,13 @@ export default function WorkoutsPage() {
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredExercises.map((exercise) => (
                   <Card key={exercise.exerciseId} className="overflow-hidden">
-                    <img
+                     <Image
                       src={exercise.imageUrl || "/api/placeholder/400/250"}
                       alt={exercise.name}
-                      className="aspect-video object-cover"
-                    />
+                      width={400}
+                      height={250}
+                      className="aspect-video object-cover w-full"
+                    />                    
                     <CardHeader>
                       <CardTitle>{exercise.name}</CardTitle>
                       <CardDescription className="flex items-center justify-between">

@@ -98,6 +98,7 @@ export default function UserManagement() {
     }).length,
   };
 
+  
   // Load users from API
   const loadUsers = async () => {
     try {
@@ -134,12 +135,11 @@ export default function UserManagement() {
       setIsLoading(false);
     }
   };
-
   useEffect(() => {
     if (isAuthenticated && isAdmin) {
       loadUsers();
     }
-  }, [isAuthenticated, isAdmin]);
+  }, [isAuthenticated, isAdmin, loadUsers]);
 
   // Filter users based on search query and filters
   useEffect(() => {

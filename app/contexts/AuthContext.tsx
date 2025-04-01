@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, ReactNode, useContext, useMemo, useState } from "react"
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react"
 import { useSession, signIn, signOut, SessionProvider } from "next-auth/react";
 import { useRouter } from "next/navigation"
 import { activityService } from "../services/activity";
@@ -40,6 +40,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
   const [redirectUrl, setRedirectUrl] = useState<string | undefined>(session?.redirectTo);
   
+  useEffect(() => {
+    if (session?.provider) {
+      sessionStorage.setItem("authProvider", session.provider);
+    }
+  }, [session]);
+  
   useMemo(() => {
     if (session?.redirectTo) {
       setRedirectUrl(session.redirectTo);
@@ -47,11 +53,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [session?.redirectTo]);
 
 
+
   // Helper function to get user ID consistently
-  const getUserId = (): string | number | null => {
+  const getUserId = useCallback((): string | number | null => {
     if (!user) return null;
     return user.id ?? (user.userId ?? null);
-  };
+  }, [user]);
 
    // Helper function to get API token
    const getApiToken = (): string | null => {
@@ -60,27 +67,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
    // Function to make authenticated requests
-   const apiRequest = async (url: string, options: RequestInit = {}) => {
-    const token = getApiToken();
-    
-    if (!token) {
-      throw new Error("Not authenticated");
-    }
-    
-    const headers = {
-      ...options.headers,
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    };
-    
-    return fetch(url, {
-      ...options,
-      headers,
-    });
-  };
+  const apiRequest = useCallback(async (url: string, options: RequestInit = {}) => {
+   const token = getApiToken();
+   
+   if (!token) {
+    throw new Error("Not authenticated");
+   }
+   
+   const headers = {
+    ...options.headers,
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+   };
+   
+   return fetch(url, {
+    ...options,
+    headers,
+   });
+  }, [getApiToken]);
 
   // Function to track user activities
-  const trackActivity = (type: string, description: string) => {
+  const trackActivity = useCallback((type: string, description: string) => {
     const userId = getUserId();
     if (userId) {
       activityService.addActivity({
@@ -89,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description
       });
     }
-  };
+  }, [getUserId]);
 
   const login = async (email: string, password: string) => {
     // setLoading(true);
@@ -114,22 +121,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Logout function using Auth.js
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await signOut({ redirect: false });
     router.push("/"); // Redirect to home page after logout
-  };
+  }, [router]);
 
-  const register = async (
+  const register = useCallback(async (
     fullName: string,
     email: string,
     password: string,
     additionalData?: any
   ) => {
-    // setLoading(true);
     setError(null);
     
     try {      
-     // You'll need to interact with your Hono server here
      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`, {
       method: "POST",
       headers: {
@@ -148,19 +153,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error(errorData.message || "Registration failed");
     }
     
-      
-      // Login automatically after registration
-      await login(email, password);
+    // Login automatically after registration
+    await login(email, password);
 
-
-      // Redirect to dashboard after registration
-      router.push("/dashboard");
-    } catch (err) {
-      console.error("Registration error:", err);
-      setError(err instanceof Error ? err.message : "Registration failed");
-      throw err;
-    } 
-  };
+    // Redirect to dashboard after registration
+    router.push("/dashboard");
+  } catch (err) {
+    console.error("Registration error:", err);
+    setError(err instanceof Error ? err.message : "Registration failed");
+    throw err;
+  } 
+}, [login, router, setError]);
 
   const loginWithGoogle = async () => {
     setError(null);
@@ -189,7 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     getUserId,
     trackActivity,
     apiRequest
-  }), [user, loading, error, isAuthenticated, isAdmin]);
+  }), [user, loading, error, isAuthenticated, isAdmin, redirectUrl, logout, register, getUserId, trackActivity, apiRequest]);
 
   return (
     <AuthContext.Provider value={contextValue}>
