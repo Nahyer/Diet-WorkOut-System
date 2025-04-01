@@ -1,16 +1,16 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Search, Filter, MoreHorizontal, Download, Trash2, Mail, Ban, Shield, Activity } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Pagination } from "@/components/common/pagination"
-import { AddUserModal } from "@/components/admin/add-user-modal"
-import { UserActivityModal } from "@/components/admin/user-activity-modal"
-import { EmailUserModal } from "@/components/admin/email-user-modal"
-import { ChangeRoleModal } from "@/components/admin/change-role-modal"
-import { SuspendUserModal } from "@/components/admin/suspend-user-modal"
+import { useState, useEffect, useCallback } from "react";
+import { Search, Filter, MoreHorizontal, Download, Trash2, Mail, Ban, Shield, Activity } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/common/pagination";
+import { AddUserModal } from "@/components/admin/add-user-modal";
+import { UserActivityModal } from "@/components/admin/user-activity-modal";
+import { EmailUserModal } from "@/components/admin/email-user-modal";
+import { ChangeRoleModal } from "@/components/admin/change-role-modal";
+import { SuspendUserModal } from "@/components/admin/suspend-user-modal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,13 +18,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useAuth } from "@/app/contexts/AuthContext"
-import { useToast } from "@/components/ui/use-toast"
-import { userService } from "@/app/services/user" // Import the updated user service
+} from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/app/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
+import { userService } from "@/app/services/user";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,7 +34,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { format } from "date-fns";
 
 // Define User type based on your backend schema
 type User = {
@@ -54,10 +57,9 @@ type User = {
   dietaryRestrictions?: string;
   createdAt: string;
   updatedAt: string;
-  // Calculated fields for display
   lastActive?: string;
   status?: string;
-}
+};
 
 export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
@@ -98,9 +100,53 @@ export default function UserManagement() {
     }).length,
   };
 
-  
+  // Export users as PDF
+  const exportUsers = () => {
+    try {
+      if (filteredUsers.length === 0) {
+        toast({
+          title: "Error",
+          description: "No users available to export.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const doc = new jsPDF();
+      doc.text("User Management Export", 20, 20);
+
+      const tableData = filteredUsers.map(user => [
+        user.fullName,
+        user.email,
+        user.role.charAt(0).toUpperCase() + user.role.slice(1),
+        user.status || "active",
+        user.lastActive || "Never",
+      ]);
+
+      autoTable(doc, {
+        head: [["Full Name", "Email", "Role", "Status", "Last Active"]],
+        body: tableData,
+        startY: 30,
+      });
+
+      doc.save(`users-export-${format(new Date(), "yyyy-MM-dd")}.pdf`);
+      toast({
+        title: "Success",
+        description: "Users exported successfully as PDF.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Error exporting users:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to export users. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Load users from API
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setIsLoading(true);
       const token = localStorage.getItem("token");
@@ -114,7 +160,6 @@ export default function UserManagement() {
       
       // Process users to add calculated fields
       const processedUsers = userData.map(user => {
-        // Calculate or mock some fields that might not be in the API
         return {
           ...user,
           lastActive: user.updatedAt ? new Date(user.updatedAt).toISOString().split('T')[0] : 'Never',
@@ -134,7 +179,8 @@ export default function UserManagement() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []); // Removed the semicolon and fixed dependencies
+
   useEffect(() => {
     if (isAuthenticated && isAdmin) {
       loadUsers();
@@ -327,7 +373,7 @@ export default function UserManagement() {
           <p className="text-muted-foreground">Manage and monitor user accounts</p>
         </div>
         <div className="flex items-center gap-4">
-          <Button variant="outline">
+          <Button variant="outline" onClick={exportUsers}>
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
@@ -500,7 +546,7 @@ export default function UserManagement() {
                               />
                               <ChangeRoleModal 
                                 user={user}
-                                onRoleChanged={loadUsers}
+                                onRoleChanged={() => { loadUsers(); }}
                                 trigger={
                                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                     <Shield className="mr-2 h-4 w-4" /> Change Role
@@ -516,7 +562,7 @@ export default function UserManagement() {
                               </DropdownMenuItem>
                               <SuspendUserModal 
                                 user={user}
-                                onUserSuspended={loadUsers}
+                                onUserSuspended={() => loadUsers()}
                                 trigger={
                                   <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
                                     <Ban className="mr-2 h-4 w-4" /> Suspend User
@@ -595,5 +641,5 @@ export default function UserManagement() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

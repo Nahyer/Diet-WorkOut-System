@@ -419,9 +419,8 @@ export default function Contact() {
                     <div>
                       <h3 className="font-medium">Visit Us</h3>
                       <p className="text-gray-600">
-                        123 Fitness Street
+                           Fitness Street,Kutus
                         <br />
-                        New York, NY 10001
                       </p>
                     </div>
                   </div>
@@ -429,7 +428,7 @@ export default function Contact() {
                     <Phone className="h-6 w-6 text-red-500 mt-1" />
                     <div>
                       <h3 className="font-medium">Call Us</h3>
-                      <p className="text-gray-600">+1 (234) 567-8900</p>
+                      <p className="text-gray-600">+ (254) 567-8900</p>
                     </div>
                   </div>
                   <div className="flex items-start space-x-4">
@@ -496,7 +495,7 @@ export default function Contact() {
               <CardContent>
                 <div className="aspect-video rounded-lg overflow-hidden">
                   <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d387193.30596698663!2d-74.25987368715491!3d40.69714941932609!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c24fa5d33f083b%3A0xc80b8f06e177fe62!2sNew%20York%2C%20NY%2C%20USA!5e0!3m2!1sen!2s!4v1645564764976!5m2!1sen!2s"
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3989.623478986334!2d37.317686274093944!3d-0.5662437352612115!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182629b5a37f6381%3A0x859cebe37dc37639!2sKirinyaga%20University!5e0!3m2!1sen!2ske!4v1743497827898!5m2!1sen!2ske"
                     width="100%"
                     height="100%"
                     style={{ border: 0 }}

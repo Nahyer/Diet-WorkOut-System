@@ -86,9 +86,9 @@ export default function Home() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             <TestimonialCard
               image="/images/lost-pounds.jpg"
-              quote="Lost 30 pounds in 3 months!"
+              quote="Lost 15 Kilograms in 3 months!"
               name="Sarah Johnson"
-              achievement="-30 lbs"
+              achievement="-15 Kgs"
             />
             <TestimonialCard
               image="/images/Evans-Mue.jpg"

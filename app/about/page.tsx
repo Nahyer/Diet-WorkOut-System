@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Brain, Target, Users, TrendingUp, ChevronRight, Github, Linkedin, Twitter } from "lucide-react"
+import { Brain, Target, Users, TrendingUp, ChevronRight, Github } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -221,16 +221,10 @@ function TeamMemberCard({ image, name, role, bio }: { image: string; name: strin
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
           <div className="flex gap-4 text-white">
-            <a href="#" className="hover:text-red-500 transition-colors">
-              <Twitter className="h-5 w-5" />
-            </a>
-            <a href="#" className="hover:text-red-500 transition-colors">
-              <Linkedin className="h-5 w-5" />
-            </a>
-            <a href="#" className="hover:text-red-500 transition-colors">
-              <Github className="h-5 w-5" />
-            </a>
-          </div>
+  <a href="#" className="hover:text-red-500 transition-colors">
+    <Github className="h-6 w-6" />
+  </a>
+</div>
         </div>
       </div>
       <CardContent className="p-6">

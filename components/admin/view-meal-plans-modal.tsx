@@ -97,12 +97,12 @@ export function ViewMealPlansModal({ nutritionPlanId, trigger }: ViewMealPlansMo
         throw new Error("Failed to fetch meal plans")
       }
       
-      const data = await response.json()
+      const data: MealPlan[] = await response.json()
       setMealPlans(data)
       
       // Set active day to the first day that has meal plans
       if (data.length > 0) {
-        const days = [...new Set(data.map(meal => meal.dayNumber))]
+        const days = [...new Set(data.map((meal: MealPlan) => meal.dayNumber))]
         if (days.length > 0) {
           setActiveDay(days[0].toString())
         }
