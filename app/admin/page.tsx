@@ -9,86 +9,14 @@ import { useAuth } from "@/app/contexts/AuthContext"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { Loader2 } from "lucide-react"
 
-// Define types for our data
-interface UserData {
-  userId: number;
-  user_id?: number;
-  id?: number;
-  fullName?: string;
-  full_name?: string;
-  email: string;
-  createdAt?: string;
-  created_at?: string;
-  lastActive?: string;
-  last_active?: string;
-  isActive?: boolean;
-  is_active?: boolean;
-  role?: string;
-  [key: string]: any;
-}
-
-interface TicketData {
-  ticketId: number;
-  ticket_id?: number;
-  userId: number;
-  user_id?: number;
-  subject: string;
-  message: string;
-  status: string;
-  adminResponse?: string;
-  admin_response?: string;
-  category: string;
-  createdAt?: string;
-  created_at?: string;
-  updatedAt?: string;
-  updated_at?: string;
-  resolvedAt?: string;
-  resolved_at?: string;
-  user?: {
-    fullName?: string;
-    full_name?: string;
-    email: string;
-  };
-}
-
-interface RecentUser {
-  id: string | number;
-  name: string;
-  email: string;
-  date: string;
-  status: string;
-}
-
-interface Ticket {
-  id: number;
-  user: string;
-  userId: number;
-  subject: string;
-  message: string;
-  status: string;
-  category: string;
-  createdAt: string;
-  adminResponse?: string;
-}
-
-interface SystemMetric {
-  time: string;
-  cpu: number;
-  memory: number;
-  requests: number;
-}
-
-interface UserActivity {
-  time: string;
-  users: number;
-}
 
 // API base URL
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ;
 
 export default function AdminDashboard() {
-  const { user } = useAuth()
+    const { user, isAdmin, apiRequest, loading: authLoading, getUserId } = useAuth();
   
   // State for dashboard data
   const [userData, setUserData] = useState({
@@ -96,10 +24,13 @@ export default function AdminDashboard() {
     activeUsers: 0,
     newUsersThisMonth: 0
   })
+  console.log("🚀 ~ AdminDashboard ~ userData:", userData)
+
   const [systemData] = useState({
     uptime: "99.9%",
     responseTime: "45ms"
   })
+
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([])
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [systemMetrics, setSystemMetrics] = useState<SystemMetric[]>([])
@@ -114,36 +45,27 @@ export default function AdminDashboard() {
   const [updatingTicket, setUpdatingTicket] = useState(false)
 
   // Get admin's name
-  const adminName = user?.fullName || "Admin"
+  const adminName = user?.name || "Admin"
 
   // Helper function for API requests
   const fetchData = async (endpoint: string) => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`${API_URL}${endpoint}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`)
+      const response = await apiRequest(`${API_URL}${endpoint}`);
+      if (!response.ok && response.status === 404) {
+
       }
-      
-      return await response.json()
+      return await response.json();
     } catch (error) {
-      console.error(`Error fetching from ${endpoint}:`, error)
-      setError(error instanceof Error ? error.message : "Unknown error occurred")
-      return null
+      console.error(`Error fetching from ${endpoint}:`, error);
+      setError(error instanceof Error ? error.message : "Unknown error occurred");
+      return null;
     }
-  }
+  };
 
   // Helper function to update ticket status
   const updateTicketStatus = async (ticketId: number, status: string, adminResponse?: string) => {
     setUpdatingTicket(true)
     try {
-      const token = localStorage.getItem('token')
       
       // Prepare request body based on API expectations
       // Using snake_case for API compatibility
@@ -162,14 +84,10 @@ export default function AdminDashboard() {
       
       console.log('Updating ticket with:', requestBody)
       
-      const response = await fetch(`${API_URL}/api/support-tickets/${ticketId}`, {
+      const response = await apiRequest(`${API_URL}/api/support-tickets/${ticketId}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(requestBody)
-      })
+      });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
@@ -245,6 +163,7 @@ export default function AdminDashboard() {
     return data
   }
 
+  //!Mock seen replace
   // Generate mock user activity data (replace with real API data when available)
   const generateUserActivity = () => {
     const hours = 24
@@ -273,11 +192,7 @@ export default function AdminDashboard() {
     return user.fullName || user.full_name || 'Unknown User'
   }
 
-  // Get user ID handling different field formats
-  const getUserId = (user: UserData): number => {
-    return user.userId || user.user_id || user.id || 0
-  }
-
+ 
   useEffect(() => {
     const loadDashboardData = async () => {
       setLoading(true)
@@ -335,7 +250,7 @@ export default function AdminDashboard() {
               
               // Skip if no createdAt value
               if (!createdAt) {
-                console.log(`User ${getUserId(user)} has no creation date`)
+                console.log(`User ${user.id} has no creation date`)
                 return false
               }
               
@@ -344,18 +259,18 @@ export default function AdminDashboard() {
                 const createdDate = new Date(createdAt)
                 
                 if (isNaN(createdDate.getTime())) {
-                  console.log(`User ${getUserId(user)} has invalid date: ${createdAt}`)
+                  console.log(`User ${user.id} has invalid date: ${createdAt}`)
                   return false
                 }
                 
                 // Check if it's within the last 48 hours
                 const isRecent = createdDate >= last48Hours
                 
-                console.log(`User ${getUserId(user)}: Created at ${createdDate.toISOString()}, Is recent: ${isRecent}`)
+                console.log(`User ${user.id}: Created at ${createdDate.toISOString()}, Is recent: ${isRecent}`)
                 
                 return isRecent
               } catch (e) {
-                console.error(`Error parsing date for user ${getUserId(user)}:`, e)
+                console.error(`Error parsing date for user ${user.id}:`, e)
                 return false
               }
             })
@@ -371,7 +286,7 @@ export default function AdminDashboard() {
           
           // Map to the required format for the UI
           const mappedUsers: RecentUser[] = recentRegistrations.map(user => ({
-            id: getUserId(user),
+            id: user.userId!,
             name: getUserName(user),
             email: user.email,
             date: formatDate(user.createdAt || user.created_at),
@@ -415,7 +330,7 @@ export default function AdminDashboard() {
     }
     
     loadDashboardData()
-  }, [])
+  }, [authLoading,isAdmin])
 
   // Function to view a specific ticket
   const viewTicket = (ticket: Ticket) => {
@@ -455,6 +370,22 @@ export default function AdminDashboard() {
     }
   }
 
+  // Redirect if user is not an admin
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="w-12 h-12 animate-spin text-primary"/>
+          <p>Checking authorization...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return null; // Will redirect via useEffect
+  }
+  
   // Render loading state
   if (loading) {
     return (

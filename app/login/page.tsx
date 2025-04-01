@@ -25,7 +25,10 @@ export default function Login() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
+      console.log("🚀 ~ useEffect ~ user?.role:", user?.role)
+      console.log("🚀 ~ useEffect ~ isAuthenticated:", isAuthenticated)
       if (user?.role === "admin") {
+        
         router.push("/admin")
       } else {
         router.push("/dashboard")

@@ -75,17 +75,15 @@ export default function SettingsPage() {
 		isAuthenticated,
 		logout,
 		apiRequest,
+		isOAuthUser,
 	} = useAuth();
 	const [saving, setSaving] = useState(false);
 	const [activeTab, setActiveTab] = useState("profile");
 	const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 	const [hasChanges, setHasChanges] = useState(false);
-	const [originalData, setOriginalData] =
-		useState<ProfileDataWithPassword | null>(null);
-	const [isOAuthUser, setIsOAuthUser] = useState(false);
+	const [originalData, setOriginalData] = useState<ProfileDataWithPassword | null>(null);
 
-	const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
+	
 	// Profile state with password fields included
 	const [profileData, setProfileData] = useState<ProfileDataWithPassword>({
 		fullName: "",
@@ -105,6 +103,8 @@ export default function SettingsPage() {
 		dietaryRestrictions: "",
 	});
 
+	const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 	//fetch user profile data from the server
 	const fetchUserData = useCallback(
 		async (id: string) => {
@@ -123,13 +123,11 @@ export default function SettingsPage() {
 			if (user) {
 				try {
 					if (!user.id) return;
+					console.log("🚀 ~ SettingsPage ~ isOAuthUser:", isOAuthUser)
 
-					setIsOAuthUser(
-						user.provider === "google" ||
-							sessionStorage.getItem("authProvider") === "google"
-					);
 					const userData = await fetchUserData(user.id);
-					console.log("🚀 ~ fetchUserProfile ~ userData:", userData);
+					console.log("🚀 ~ fetchUserProfile ~ userData:", userData); 
+
 					if (!userData) return console.error("User data is missing");
 					// Populate profile data with user data
 					const formattedData = {
@@ -166,6 +164,9 @@ export default function SettingsPage() {
 		};
 		fetchUserProfile();
 	}, [user]);
+					console.log("🚀 ~ fetchUserProfile ~ isOAuthUser:", isOAuthUser)
+					console.log("🚀 ~ fetchUserProfile ~ isOAuthUser:", isOAuthUser)
+					console.log("🚀 ~ fetchUserProfile ~ isOAuthUser:", isOAuthUser)
 
 	useEffect(() => {
 		if (originalData) {

@@ -12,6 +12,7 @@ import { RegisterData } from "../services/auth";
 
 type AuthContextType = {
   user: User | null;
+  isOAuthUser: boolean;
   redirectUrl: string | undefined;
   loading: boolean;
   error: string | null;
@@ -33,18 +34,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [redirectUrl, setRedirectUrl] = useState<string | undefined>(session?.redirectTo);
   const loading = status === "loading";
   const user = session?.user ?? null;
   const isAuthenticated = status === "authenticated";
   const isAdmin = user?.role === "admin";
-  const [error, setError] = useState<string | null>(null);
-  const [redirectUrl, setRedirectUrl] = useState<string | undefined>(session?.redirectTo);
-  
-  useEffect(() => {
-    if (session?.provider) {
-      sessionStorage.setItem("authProvider", session.provider);
-    }
-  }, [session]);
+	const isOAuthUser = session?.provider === "google" 
+   
+
   
   useMemo(() => {
     if (session?.redirectTo) {
@@ -190,6 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAuthenticated,
     isAdmin,
     getUserId,
+    isOAuthUser,
     trackActivity,
     apiRequest
   }), [user, loading, error, isAuthenticated, isAdmin, redirectUrl, logout, register, getUserId, trackActivity, apiRequest]);

@@ -90,14 +90,17 @@ export const authOptions: NextAuthOptions = {
                     );
 
                     if (existingUserResponse.ok) {
-                        const data = await existingUserResponse.json();
+                        const data: TData = await existingUserResponse.json();
+                        console.log("🚀 ~ signIn ~ data:", data)
 
 
                         if (data.exists) {
                             console.log("Existing user found, proceeding with sign in");
-                            user.id = data.userId; // Set the user ID from your database
-                            user.role = data.role; // Set the user role from your database
+                            user.id = data.user.id.toString(); // Set the user ID from your database
+                            user.role = data.user.role; // Set the user role from your database
                             user.redirectTo = REDIRECT_URL.DASHBOARD; // Redirect to dashboard for existing users
+                            user.email = data.user.email; // Set the user email from your database
+                            user.name = data.user.name; // Set the user name from your database
 
                             return true;
                         }
@@ -132,7 +135,6 @@ export const authOptions: NextAuthOptions = {
                 token.email = user.email;
                 token.name = user.name;
                 token.role = user.role ?? "user";
-            console.log("🚀 ~ jwt ~ user:", user)
 
 
                 // For credentials sign-ins, save the user ID and token
@@ -162,6 +164,7 @@ export const authOptions: NextAuthOptions = {
                                 // Store the Hono-issued token
                                 token.apiToken = data.token;
                                 token.id= data.user.userId?.toString() // Set the user ID from your database
+                                token.provider = account.provider; // Set the provider
                             }
                         } catch (error) {
                             console.error("Failed to get Hono token for OAuth user:", error);
