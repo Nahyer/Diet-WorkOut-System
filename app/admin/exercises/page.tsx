@@ -1,11 +1,13 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Search, Filter, MoreHorizontal, Download, Trash2, Edit, Eye, Dumbbell } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Pagination } from "@/components/common/pagination"
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/app/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
+import { Search, Filter, MoreHorizontal, Download, Trash2, Eye, Edit } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/common/pagination";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,11 +15,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { useAuth } from "@/app/contexts/AuthContext"
-import { useToast } from "@/components/ui/use-toast"
+} from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,10 +27,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { AddExerciseModal } from "@/components/admin/add-exercise-modal"
-import { EditExerciseModal } from "@/components/admin/edit-exercise-modal"
-import { ViewExerciseModal } from "@/components/admin/view-exercise-modal"
+} from "@/components/ui/alert-dialog";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { format } from "date-fns";
 
 // Define Exercise type based on your backend schema
 type Exercise = {
@@ -138,8 +138,6 @@ const exerciseService = {
   },
 
   async bulkDeleteExercises(ids: number[]): Promise<void> {
-    // Implement bulk deletion logic if your API supports it
-    // For now, we'll delete exercises one by one
     try {
       await Promise.all(ids.map(id => this.deleteExercise(id)));
     } catch (error) {
@@ -157,32 +155,77 @@ export default function ExerciseManagement() {
   const [difficultyFilter, setDifficultyFilter] = useState("all");
   const [muscleGroupFilter, setMuscleGroupFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Delete confirmation dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [exerciseToDelete, setExerciseToDelete] = useState<number | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
-  
+
   // Success message dialog state
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
-  
-  // Exercise to edit or view
+
+  // Exercise to view
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [paginatedExercises, setPaginatedExercises] = useState<Exercise[]>([]);
-  
+
   const { isAdmin, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
-  
+  // Unique muscle groups for filter
+  const muscleGroups = Array.from(new Set(exercises.map(ex => ex.targetMuscleGroup.toLowerCase())));
+
+  // Export exercises as PDF
+  const exportExercises = () => {
+    try {
+      if (filteredExercises.length === 0) {
+        toast({
+          title: "Error",
+          description: "No exercises available to export.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const doc = new jsPDF();
+      doc.text("Exercise Management Export", 20, 20);
+
+      const tableData = filteredExercises.map(exercise => [
+        exercise.name,
+        exercise.targetMuscleGroup,
+        exercise.difficulty,
+        exercise.equipment || "None",
+      ]);
+
+      autoTable(doc, {
+        head: [["Name", "Target Muscle Group", "Difficulty", "Equipment"]],
+        body: tableData,
+        startY: 30,
+      });
+
+      doc.save(`exercises-export-${format(new Date(), "yyyy-MM-dd")}.pdf`);
+      toast({
+        title: "Success",
+        description: "Exercises exported successfully as PDF.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Error exporting exercises:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to export exercises. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Load exercises from API
-  const loadExercises = async () => {
+  const loadExercises = useCallback(async () => {
     try {
       setIsLoading(true);
       const exerciseData = await exerciseService.getAllExercises();
@@ -198,7 +241,8 @@ export default function ExerciseManagement() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []); // Removed the semicolon
+
   useEffect(() => {
     if (isAuthenticated && isAdmin) {
       loadExercises();
@@ -208,37 +252,37 @@ export default function ExerciseManagement() {
   // Filter exercises based on search query and filters
   useEffect(() => {
     let result = [...exercises];
-    
+
     // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
-        exercise => 
-          exercise.name.toLowerCase().includes(query) || 
+        (exercise) =>
+          exercise.name.toLowerCase().includes(query) ||
           exercise.description.toLowerCase().includes(query) ||
           exercise.targetMuscleGroup.toLowerCase().includes(query)
       );
     }
-    
+
     // Apply difficulty filter
     if (difficultyFilter !== "all") {
-      result = result.filter(exercise => 
-        exercise.difficulty.toLowerCase() === difficultyFilter
+      result = result.filter(
+        (exercise) => exercise.difficulty.toLowerCase() === difficultyFilter
       );
     }
-    
+
     // Apply muscle group filter
     if (muscleGroupFilter !== "all") {
-      result = result.filter(exercise => 
+      result = result.filter((exercise) =>
         exercise.targetMuscleGroup.toLowerCase().includes(muscleGroupFilter.toLowerCase())
       );
     }
-    
+
     // Reset to first page when filters change
     setCurrentPage(1);
     setFilteredExercises(result);
   }, [exercises, searchQuery, difficultyFilter, muscleGroupFilter]);
-  
+
   // Apply pagination
   useEffect(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -263,10 +307,10 @@ export default function ExerciseManagement() {
   const handleDeleteExercise = async () => {
     try {
       if (isBulkDelete) {
-        // Delete multiple exercises
+        // Bulk delete exercises
         await exerciseService.bulkDeleteExercises(selectedExercises);
         
-        // Update the exercises list
+        // Update the exercises list - remove deleted exercises
         setExercises(exercises.filter(exercise => !selectedExercises.includes(exercise.exerciseId)));
         setSelectedExercises([]);
         
@@ -280,7 +324,7 @@ export default function ExerciseManagement() {
         // Delete a single exercise
         await exerciseService.deleteExercise(exerciseToDelete);
         
-        // Update the exercises list
+        // Update the exercises list - remove the deleted exercise
         setExercises(exercises.filter(exercise => exercise.exerciseId !== exerciseToDelete));
         
         toast({
@@ -323,62 +367,16 @@ export default function ExerciseManagement() {
     }
   };
 
-  // Handle viewing exercise details
-  const handleViewExercise = async (exerciseId: number) => {
-    try {
-      const exercise = await exerciseService.getExerciseById(exerciseId);
-      setSelectedExercise(exercise);
-      setIsViewModalOpen(true);
-    } catch (error) {
-      console.error("Error fetching exercise details:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load exercise details.",
-        variant: "destructive",
-      });
-    }
+  // Open view dialog
+  const handleViewExercise = (exercise: Exercise) => {
+    setSelectedExercise(exercise);
+    setIsViewDialogOpen(true);
   };
 
-  // Handle editing exercise
-  const handleEditExercise = async (exerciseId: number) => {
-    try {
-      const exercise = await exerciseService.getExerciseById(exerciseId);
-      setSelectedExercise(exercise);
-      setIsEditModalOpen(true);
-    } catch (error) {
-      console.error("Error fetching exercise for editing:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load exercise for editing.",
-        variant: "destructive",
-      });
-    }
+  // Format difficulty for display
+  const formatDifficulty = (difficulty: string) => {
+    return difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
   };
-
-  // Get difficulty badge color
-  const getDifficultyBadgeVariant = (difficulty: string) => {
-    switch (difficulty.toLowerCase()) {
-      case 'beginner':
-        return 'default';
-      case 'intermediate':
-        return 'secondary';
-      case 'advanced':
-        return 'destructive';
-      default:
-        return 'outline';
-    }
-  };
-  
-  // Calculate stats
-  const exerciseStats = {
-    totalExercises: exercises.length,
-    beginnerExercises: exercises.filter(exercise => exercise.difficulty.toLowerCase() === 'beginner').length,
-    intermediateExercises: exercises.filter(exercise => exercise.difficulty.toLowerCase() === 'intermediate').length,
-    advancedExercises: exercises.filter(exercise => exercise.difficulty.toLowerCase() === 'advanced').length,
-  };
-
-  // Get unique muscle groups for filter
-  const muscleGroups = [...new Set(exercises.map(exercise => exercise.targetMuscleGroup))];
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -401,7 +399,7 @@ export default function ExerciseManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
+
       {/* Success Message Dialog */}
       <AlertDialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
         <AlertDialogContent>
@@ -426,36 +424,47 @@ export default function ExerciseManagement() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* View Exercise Modal */}
-      {selectedExercise && (
-        <ViewExerciseModal 
-          isOpen={isViewModalOpen}
-          onClose={() => setIsViewModalOpen(false)}
-          exercise={selectedExercise}
-        />
-      )}
-
-      {/* Edit Exercise Modal */}
-      {selectedExercise && (
-        <EditExerciseModal 
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          exercise={selectedExercise}
-          onExerciseUpdated={loadExercises}
-        />
-      )}
+      {/* View Exercise Dialog */}
+      <AlertDialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{selectedExercise?.name}</AlertDialogTitle>
+            <AlertDialogDescription>
+              <div className="space-y-2">
+                <p><strong>Description:</strong> {selectedExercise?.description}</p>
+                <p><strong>Target Muscle Group:</strong> {selectedExercise?.targetMuscleGroup}</p>
+                <p><strong>Difficulty:</strong> {selectedExercise?.difficulty}</p>
+                <p><strong>Equipment:</strong> {selectedExercise?.equipment || "None"}</p>
+                <p><strong>Workout Type:</strong> {selectedExercise?.workoutType}</p>
+                <p><strong>Instructions:</strong> {selectedExercise?.instructions}</p>
+                {selectedExercise?.caloriesBurnRate && (
+                  <p><strong>Calories Burn Rate:</strong> {selectedExercise.caloriesBurnRate} kcal/min</p>
+                )}
+                {selectedExercise?.videoUrl && (
+                  <p><strong>Video URL:</strong> <a href={selectedExercise.videoUrl} target="_blank" rel="noopener noreferrer">{selectedExercise.videoUrl}</a></p>
+                )}
+                {selectedExercise?.imageUrl && (
+                  <p><strong>Image URL:</strong> <a href={selectedExercise.imageUrl} target="_blank" rel="noopener noreferrer">{selectedExercise.imageUrl}</a></p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Close</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Exercise Library</h2>
-          <p className="text-muted-foreground">Manage exercises for workout plans</p>
+          <h2 className="text-3xl font-bold tracking-tight">Exercise Management</h2>
+          <p className="text-muted-foreground">Manage and monitor exercises</p>
         </div>
         <div className="flex items-center gap-4">
-          <Button variant="outline">
+          <Button variant="outline" onClick={exportExercises}>
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <AddExerciseModal onExerciseAdded={loadExercises} />
         </div>
       </div>
 
@@ -491,7 +500,9 @@ export default function ExerciseManagement() {
                 <SelectContent>
                   <SelectItem value="all">All Muscle Groups</SelectItem>
                   {muscleGroups.map(group => (
-                    <SelectItem key={group} value={group.toLowerCase()}>{group}</SelectItem>
+                    <SelectItem key={group} value={group}>
+                      {group.charAt(0).toUpperCase() + group.slice(1)}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -519,7 +530,7 @@ export default function ExerciseManagement() {
       <Card>
         <CardHeader>
           <CardTitle>Exercises</CardTitle>
-          <CardDescription>A comprehensive list of exercises in your fitness application.</CardDescription>
+          <CardDescription>A list of all exercises in your application.</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -548,9 +559,9 @@ export default function ExerciseManagement() {
                         Exercise
                       </div>
                     </th>
-                    <th className="h-12 px-4 text-left align-middle font-medium">Muscle Group</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium">Target Muscle Group</th>
                     <th className="h-12 px-4 text-left align-middle font-medium">Difficulty</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium">Workout Type</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium">Equipment</th>
                     <th className="h-12 px-4 text-right align-middle font-medium">Actions</th>
                   </tr>
                 </thead>
@@ -572,32 +583,20 @@ export default function ExerciseManagement() {
                               checked={selectedExercises.includes(exercise.exerciseId)}
                               onChange={() => toggleExerciseSelection(exercise.exerciseId)}
                             />
-                            <div className="rounded-md bg-gray-100 p-2">
-                              <Dumbbell className="h-4 w-4 text-red-500" />
-                            </div>
                             <div>
                               <div className="font-medium">{exercise.name}</div>
-                              <div className="text-sm text-muted-foreground truncate max-w-xs">
-                                {exercise.description}
-                              </div>
+                              <div className="text-sm text-muted-foreground">{exercise.description}</div>
                             </div>
                           </div>
                         </td>
                         <td className="p-4">
-                          <Badge variant="outline" className="capitalize">
-                            {exercise.targetMuscleGroup}
-                          </Badge>
+                          <Badge variant="outline">{exercise.targetMuscleGroup}</Badge>
                         </td>
                         <td className="p-4">
-                          <Badge 
-                            variant={getDifficultyBadgeVariant(exercise.difficulty)} 
-                            className="capitalize"
-                          >
-                            {exercise.difficulty}
-                          </Badge>
+                          <Badge variant="outline">{formatDifficulty(exercise.difficulty)}</Badge>
                         </td>
                         <td className="p-4">
-                          <div className="text-sm capitalize">{exercise.workoutType}</div>
+                          <div className="text-sm">{exercise.equipment || "None"}</div>
                         </td>
                         <td className="p-4 text-right">
                           <DropdownMenu>
@@ -609,11 +608,8 @@ export default function ExerciseManagement() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => handleViewExercise(exercise.exerciseId)}>
+                              <DropdownMenuItem onClick={() => handleViewExercise(exercise)}>
                                 <Eye className="mr-2 h-4 w-4" /> View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEditExercise(exercise.exerciseId)}>
-                                <Edit className="mr-2 h-4 w-4" /> Edit Exercise
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
@@ -641,60 +637,6 @@ export default function ExerciseManagement() {
           )}
         </CardContent>
       </Card>
-
-      {/* Exercise Analytics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Exercises</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{exerciseStats.totalExercises}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Beginner Exercises</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{exerciseStats.beginnerExercises}</div>
-            <p className="text-xs text-muted-foreground">
-              {exerciseStats.totalExercises > 0 
-                ? `${Math.round((exerciseStats.beginnerExercises / exerciseStats.totalExercises) * 100)}% of total exercises` 
-                : '0% of total exercises'
-              }
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Intermediate Exercises</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{exerciseStats.intermediateExercises}</div>
-            <p className="text-xs text-muted-foreground">
-              {exerciseStats.totalExercises > 0 
-                ? `${Math.round((exerciseStats.intermediateExercises / exerciseStats.totalExercises) * 100)}% of total exercises` 
-                : '0% of total exercises'
-              }
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Advanced Exercises</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{exerciseStats.advancedExercises}</div>
-            <p className="text-xs text-muted-foreground">
-              {exerciseStats.totalExercises > 0 
-                ? `${Math.round((exerciseStats.advancedExercises / exerciseStats.totalExercises) * 100)}% of total exercises` 
-                : '0% of total exercises'
-              }
-            </p>
-          </CardContent>
-        </Card>
-      </div>
     </div>
-  )
+  );
 }
