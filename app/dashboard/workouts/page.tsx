@@ -14,7 +14,8 @@ import { useAuth } from "@/app/contexts/AuthContext"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import Image from "next/image"
-
+import { CircularProgressbar, buildStyles } from "react-circular-progressbar"
+import "react-circular-progressbar/dist/styles.css"
 import "react-big-calendar/lib/css/react-big-calendar.css"
 
 const localizer = momentLocalizer(moment)
@@ -92,13 +93,14 @@ const deduplicateExercises = (exercises: Exercise[]): Exercise[] => {
   return Array.from(uniqueExercises.values());
 };
 
-// API function to fetch user's workout plan
-const fetchUserWorkoutPlan = async (userId: string | number, token: string): Promise<WorkoutPlan[]> => {
-  console.log("🚀 ~ fetchUserWorkoutPlan ~ token:", token)
+const fetchUserWorkoutPlan = async (userId: string | number): Promise<WorkoutPlan[]> => {
   try {
     console.log(`Fetching workout plans for user ID: ${userId}`);
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
+    const token = localStorage.getItem('token');
+    
+    console.log(`Using API URL: ${API_URL}`);
+    console.log(`Token available: ${!!token}`);
     
     const response = await fetch(`${API_URL}/api/workout-plans/${userId}`, {
       headers: {
@@ -128,7 +130,7 @@ type CalendarView = 'month' | 'week' | 'day' | 'agenda';
 
 export default function WorkoutsPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const [workoutPlans,setWorkoutPlans] = useState<WorkoutPlan[]>([]);
+  const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlan[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -144,8 +146,6 @@ export default function WorkoutsPage() {
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [highlightedDate, setHighlightedDate] = useState(new Date());
   const [showCreateWorkoutModal, setShowCreateWorkoutModal] = useState(false);
-  
-
 
   // Timer effect for countdown
   useEffect(() => {
@@ -215,7 +215,7 @@ export default function WorkoutsPage() {
           userIdType: userId !== null ? typeof userId : 'null'
         });
 
-        const plans = await fetchUserWorkoutPlan(userId,user!.token!);
+        const plans = await fetchUserWorkoutPlan(userId);
         console.log(`Received ${plans.length} workout plans`);
         setWorkoutPlans(plans);
 
@@ -260,10 +260,9 @@ export default function WorkoutsPage() {
 
   const generateCalendarEvents = (plan: WorkoutPlan) => {
     const events: CalendarEvent[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time part
+    const startDate = new Date(plan.createdAt);
+    startDate.setHours(0, 0, 0, 0);
 
-    // Start counting days from 1 (today) regardless of the actual day of week
     const totalDays = plan.durationWeeks * 7;
 
     for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
@@ -271,8 +270,6 @@ export default function WorkoutsPage() {
       currentDate.setDate(startDate.getDate() + dayOffset);
       
       const dayNumber = (dayOffset % 7) + 1;
-
-      // Find session for this day number
       const session = plan.sessions.find(s => s.dayNumber === dayNumber);
       
       if (session) {
@@ -421,6 +418,12 @@ export default function WorkoutsPage() {
             )}
           </p>
         </div>
+        <Button 
+          className="bg-red-500 hover:bg-red-600"
+          onClick={() => setShowCreateWorkoutModal(true)}
+        >
+          <Plus className="mr-2 h-4 w-4" /> New Workout
+        </Button>
       </div>
 
       {error && (
@@ -437,7 +440,7 @@ export default function WorkoutsPage() {
         <Tabs defaultValue="schedule" className="space-y-6">
           <TabsList>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="workout">Today&#39;s Workout</TabsTrigger>
+            <TabsTrigger value="workout">Today's Workout</TabsTrigger>
             <TabsTrigger value="exercises">Exercise Library</TabsTrigger>
           </TabsList>
 
@@ -652,7 +655,7 @@ export default function WorkoutsPage() {
                   <div className="text-center py-12">
                     <h3 className="text-xl font-medium mb-2">No workout plan available</h3>
                     <p className="text-muted-foreground mb-6">
-                      You don&#39;t have any workout plans set up yet.
+                      You don't have any workout plans set up yet.
                     </p>
                     <Button 
                       className="bg-red-500 hover:bg-red-600"
@@ -753,8 +756,8 @@ export default function WorkoutsPage() {
                           value={calculateProgress()}
                           text={`${Math.floor(timer / 60)}:${(timer % 60).toString().padStart(2, "0")}`}
                           styles={buildStyles({
-                            pathColor: timer === 0 ? "#ef4444" : isTimerRunning ? "#22c55e" : "#ef4444",
-                            textColor: timer === 0 ? "#ef4444" : isTimerRunning ? "#22c55e" : "#ef4444",
+                            pathColor: timer === 0 ? "#ef4444" : isTimerRunning ? "#22c55e" : "#6b7280",
+                            textColor: timer === 0 ? "#ef4444" : isTimerRunning ? "#22c55e" : "#6b7280",
                             trailColor: "#d1d5db",
                             textSize: "20px",
                             pathTransitionDuration: 0.5,
@@ -767,7 +770,7 @@ export default function WorkoutsPage() {
                         variant={isTimerRunning ? "default" : "outline"} 
                         size="icon" 
                         onClick={() => setIsTimerRunning(!isTimerRunning)}
-                        className={isTimerRunning ? "bg-red-500 hover:bg-red-600" : ""}
+                        className={isTimerRunning ? "bg-green-500 hover:bg-green-600" : ""}
                       >
                         {isTimerRunning ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                       </Button>
@@ -886,13 +889,14 @@ export default function WorkoutsPage() {
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredExercises.map((exercise) => (
                   <Card key={exercise.exerciseId} className="overflow-hidden">
-                     <Image
+                    <Image
                       src={exercise.imageUrl || "/api/placeholder/400/250"}
                       alt={exercise.name}
+                      className="aspect-video object-cover"
                       width={400}
                       height={250}
-                      className="aspect-video object-cover w-full"
-                    />                    
+                      layout="responsive"
+                    />
                     <CardHeader>
                       <CardTitle>{exercise.name}</CardTitle>
                       <CardDescription className="flex items-center justify-between">
@@ -942,6 +946,29 @@ export default function WorkoutsPage() {
             )}
           </TabsContent>
         </Tabs>
+      )}
+
+      {showCreateWorkoutModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Create New Workout Plan</CardTitle>
+              <CardDescription>
+                This feature will be available soon. You'll be able to create custom workout plans or generate AI-powered ones.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                In the meantime, you can explore your existing workout plans or contact our team for assistance.
+              </p>
+            </CardContent>
+            <CardFooter className="flex justify-end">
+              <Button variant="outline" onClick={() => setShowCreateWorkoutModal(false)}>
+                Close
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
       )}
     </div>
   );

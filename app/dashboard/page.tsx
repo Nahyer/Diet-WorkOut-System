@@ -7,7 +7,9 @@ import {
   Apple,
   Timer,
   Flame,
+  Plus,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AreaChart,
@@ -66,10 +68,12 @@ export default function Dashboard() {
   const { user, getUserId, isAuthenticated } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [, setWorkoutPlan] = useState<WorkoutPlan | null>(null);
-  const [, setConsumedMeals] = useState<ConsumedMeal[]>([]);
-  const [, setMealPlans] = useState<MealPlan[]>([]);
-  const firstName = user?.fullName ? user.fullName.split(" ")[0] : "User";
+  const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlan | null>(null);
+  const [consumedMeals, setConsumedMeals] = useState<ConsumedMeal[]>([]);
+  const [mealPlans, setMealPlans] = useState<MealPlan[]>([]);
+  
+  // Use the fullName from the API response (data.user.fullName)
+  const firstName = data?.user?.fullName ? data.user.fullName.split(" ")[0] : "User";
 
   // Get user ID for unique localStorage keys
   const userId = getUserId();
@@ -220,6 +224,7 @@ export default function Dashboard() {
         if (!response.ok) throw new Error("Failed to fetch dashboard data");
 
         const dashboardData: DashboardData = await response.json();
+        console.log("Dashboard data from API:", dashboardData);
         
         const workoutResponse = await fetch(`http://localhost:8000/api/workout-plans/${userId}`, {
           headers: {
@@ -329,7 +334,7 @@ export default function Dashboard() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-xs font-medium">Today&#39;s Workout</CardTitle>
+            <CardTitle className="text-xs font-medium">Today's Workout</CardTitle>
             <Dumbbell className="h-3 w-3 text-black-foreground" />
           </CardHeader>
           <CardContent>
@@ -383,7 +388,7 @@ export default function Dashboard() {
 
         <Card className="col-span-3">
           <CardHeader>
-            <CardTitle>Today&#39;s Focus</CardTitle>
+            <CardTitle>Today's Focus</CardTitle>
             <CardDescription>Your daily fitness priorities</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
