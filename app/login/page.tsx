@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import {  useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/app/contexts/AuthContext"
+import { signIn } from "next-auth/react"
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false)
@@ -18,7 +19,8 @@ export default function Login() {
   const [password, setPassword] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
   const router = useRouter()
-  const { login, error, isAuthenticated, user } = useAuth()
+  const { login, error, isAuthenticated, user, redirectUrl } = useAuth()
+  console.log("🚀 ~ Login ~ redirectUrl:", redirectUrl)
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -48,12 +50,30 @@ export default function Login() {
   }
 
   const handleGoogleSignIn = async () => {
-    setIsLoading(true)
-    // For now, we'll just simulate the Google sign-in
-    // In a real implementation, you would integrate with Google OAuth
-    setIsLoading(false)
-    setErrorMessage("Google Sign In is not implemented yet")
-  }
+    setIsLoading(true);
+    setErrorMessage("");
+    
+    try {
+      const result = await signIn("google",{
+        callbackUrl: redirectUrl,
+        redirect: false});  
+      
+      
+      if (result?.error) {
+        setErrorMessage("Failed to sign in with Google. Please try again.");
+        console.error("Google sign-in error:", result.error);
+      } else if (result?.url) {
+        // Redirect is handled by NextAuth for OAuth providers
+        // We'll be redirected to the callback URL automatically
+        router.push(result.url);
+      }
+    } catch (err) {
+      console.error("Google sign-in error:", err);
+      setErrorMessage("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">

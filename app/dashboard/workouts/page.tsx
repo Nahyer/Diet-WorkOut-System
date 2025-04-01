@@ -14,8 +14,7 @@ import { useAuth } from "@/app/contexts/AuthContext"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import Image from "next/image"
-import { CircularProgressbar, buildStyles } from "react-circular-progressbar"
-import "react-circular-progressbar/dist/styles.css"
+
 import "react-big-calendar/lib/css/react-big-calendar.css"
 
 const localizer = momentLocalizer(moment)
@@ -93,14 +92,13 @@ const deduplicateExercises = (exercises: Exercise[]): Exercise[] => {
   return Array.from(uniqueExercises.values());
 };
 
-const fetchUserWorkoutPlan = async (userId: string | number): Promise<WorkoutPlan[]> => {
+// API function to fetch user's workout plan
+const fetchUserWorkoutPlan = async (userId: string | number, token: string): Promise<WorkoutPlan[]> => {
+  console.log("🚀 ~ fetchUserWorkoutPlan ~ token:", token)
   try {
     console.log(`Fetching workout plans for user ID: ${userId}`);
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    const token = localStorage.getItem('token');
-    
-    console.log(`Using API URL: ${API_URL}`);
-    console.log(`Token available: ${!!token}`);
+
     
     const response = await fetch(`${API_URL}/api/workout-plans/${userId}`, {
       headers: {
@@ -130,7 +128,7 @@ type CalendarView = 'month' | 'week' | 'day' | 'agenda';
 
 export default function WorkoutsPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const [, setWorkoutPlans] = useState<WorkoutPlan[]>([]);
+  const [workoutPlans,setWorkoutPlans] = useState<WorkoutPlan[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -145,7 +143,9 @@ export default function WorkoutsPage() {
   const [calendarView, setCalendarView] = useState<CalendarView>('week');
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [highlightedDate, setHighlightedDate] = useState(new Date());
-  const [, setShowCreateWorkoutModal] = useState(false);
+  const [showCreateWorkoutModal, setShowCreateWorkoutModal] = useState(false);
+  
+
 
   // Timer effect for countdown
   useEffect(() => {
@@ -215,7 +215,7 @@ export default function WorkoutsPage() {
           userIdType: userId !== null ? typeof userId : 'null'
         });
 
-        const plans = await fetchUserWorkoutPlan(userId);
+        const plans = await fetchUserWorkoutPlan(userId,user!.token!);
         console.log(`Received ${plans.length} workout plans`);
         setWorkoutPlans(plans);
 
@@ -260,9 +260,10 @@ export default function WorkoutsPage() {
 
   const generateCalendarEvents = (plan: WorkoutPlan) => {
     const events: CalendarEvent[] = [];
-    const startDate = new Date(plan.createdAt);
-    startDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time part
 
+    // Start counting days from 1 (today) regardless of the actual day of week
     const totalDays = plan.durationWeeks * 7;
 
     for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
@@ -270,6 +271,8 @@ export default function WorkoutsPage() {
       currentDate.setDate(startDate.getDate() + dayOffset);
       
       const dayNumber = (dayOffset % 7) + 1;
+
+      // Find session for this day number
       const session = plan.sessions.find(s => s.dayNumber === dayNumber);
       
       if (session) {
@@ -883,14 +886,13 @@ export default function WorkoutsPage() {
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredExercises.map((exercise) => (
                   <Card key={exercise.exerciseId} className="overflow-hidden">
-                    <Image
+                     <Image
                       src={exercise.imageUrl || "/api/placeholder/400/250"}
                       alt={exercise.name}
-                      className="aspect-video object-cover"
                       width={400}
                       height={250}
-                      layout="responsive"
-                    />
+                      className="aspect-video object-cover w-full"
+                    />                    
                     <CardHeader>
                       <CardTitle>{exercise.name}</CardTitle>
                       <CardDescription className="flex items-center justify-between">

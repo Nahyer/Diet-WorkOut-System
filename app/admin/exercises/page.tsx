@@ -153,6 +153,7 @@ export default function ExerciseManagement() {
   const { isAdmin, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
+  
   // Load exercises from API
   const loadExercises = useCallback(async () => {
     try {
@@ -170,8 +171,7 @@ export default function ExerciseManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
-
+  };
   useEffect(() => {
     if (isAuthenticated && isAdmin) {
       loadExercises();

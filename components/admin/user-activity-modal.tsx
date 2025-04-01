@@ -28,6 +28,13 @@ export function UserActivityModal({ user, trigger }: UserActivityModalProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
 
+  // Load user activities when modal opens
+  useEffect(() => {
+    if (open) {
+      loadUserActivities();
+    }
+  }, [open]);
+
   const loadUserActivities = useCallback(async () => {
     setIsLoading(true);
     
@@ -58,14 +65,7 @@ export function UserActivityModal({ user, trigger }: UserActivityModalProps) {
       });
       setIsLoading(false);
     }
-  }, [toast, user.userId]);
-
-  // Load user activities when modal opens
-  useEffect(() => {
-    if (open) {
-      loadUserActivities();
-    }
-  }, [open, loadUserActivities]);
+  }, [user.userId, toast]);
 
   // Format timestamp to readable date
   const formatTimestamp = (timestamp: string) => {

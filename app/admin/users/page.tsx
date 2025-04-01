@@ -98,6 +98,7 @@ export default function UserManagement() {
     }).length,
   };
 
+  
   // Load users from API
   const loadUsers = useCallback(async () => {
     try {
@@ -133,8 +134,7 @@ export default function UserManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
-
+  };
   useEffect(() => {
     if (isAuthenticated && isAdmin) {
       loadUsers();
