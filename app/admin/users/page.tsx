@@ -38,32 +38,14 @@ import {
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
+import { SUser } from "@/Types";
+import { useRouter } from "next/navigation";
 
-// Define User type based on your backend schema
-type User = {
-  userId: number;
-  fullName: string;
-  email: string;
-  role: string;
-  dateOfBirth: string;
-  gender: string;
-  height: number;
-  weight: number;
-  fitnessGoal: string;
-  experienceLevel: string;
-  preferredWorkoutType: string;
-  activityLevel: string;
-  medicalConditions?: string;
-  dietaryRestrictions?: string;
-  createdAt: string;
-  updatedAt: string;
-  lastActive?: string;
-  status?: string;
-};
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const router = useRouter();
+  const [users, setUsers] = useState<SUser[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<SUser[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -82,11 +64,18 @@ export default function UserManagement() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  const [paginatedUsers, setPaginatedUsers] = useState<User[]>([]);
+  const [paginatedUsers, setPaginatedUsers] = useState<SUser[]>([]);
   
-  const { isAdmin, isAuthenticated } = useAuth();
+  const { isAdmin, isAuthenticated, apiRequest, loading: authLoading, getApiToken} = useAuth();
   const { toast } = useToast();
   
+   // Check if user is admin, if not redirect to dashboard
+   useEffect(() => {
+    if (!authLoading && !isAdmin) {
+      router.push("/dashboard");
+    }
+  }, [authLoading, isAdmin, router]);
+
   // Calculate stats
   const userStats = {
     totalUsers: users.length,
@@ -149,12 +138,18 @@ export default function UserManagement() {
   const loadUsers = useCallback(async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem("token");
-      
+
+      const token = getApiToken();
+
       if (!token) {
-        throw new Error("No authentication token found");
+        toast({
+          title: "Error",
+          description: "Not authenticated. Please log in again.",
+          variant: "destructive",
+        });
+        return;
       }
-      
+
       // Use the getActiveUsers method to get only non-deleted users
       const userData = await userService.getActiveUsers(token);
       
@@ -179,7 +174,7 @@ export default function UserManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, []); // Removed the semicolon and fixed dependencies
+  }, [toast]); // Removed the semicolon and fixed dependencies
 
   useEffect(() => {
     if (isAuthenticated && isAdmin) {
@@ -321,6 +316,10 @@ export default function UserManagement() {
     }
   };
 
+  if (!isAdmin) {
+    return null; // Will redirect via useEffect
+  }
+  
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
       {/* Delete Confirmation Dialog */}

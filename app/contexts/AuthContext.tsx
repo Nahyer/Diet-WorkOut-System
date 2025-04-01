@@ -24,6 +24,7 @@ type AuthContextType = {
   isAdmin: boolean;
   // Add a helper method to get user ID consistently
   getUserId: () => string | number | null;
+  getApiToken: () => string | null;
   // Add a method to track user activities
   trackActivity: (type: string, description: string) => void;
   apiRequest: (url: string, options?: RequestInit) => Promise<Response>;
@@ -190,6 +191,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     getUserId,
     isOAuthUser,
     trackActivity,
+    getApiToken,
     apiRequest
   }), [user, loading, error, isAuthenticated, isAdmin, redirectUrl, logout, register, getUserId, trackActivity, apiRequest]);
 

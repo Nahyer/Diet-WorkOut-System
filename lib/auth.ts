@@ -6,6 +6,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { authService } from "@/app/services/auth"
 import { userService } from "@/app/services/user"
 import { activityService, ActivityTypes } from "@/app/services/activity"
+import { TData } from "@/Types";
 
 const REDIRECT_URL = {
     DASHBOARD: "/dashboard",
@@ -255,14 +256,4 @@ declare module "next-auth" {
         redirectTo?: string; // Redirect URL for new users
         [key: string]: any; // For other user properties
     }
-}
-
-export interface TUser {
-    id: string;
-    userId?: number;
-    name: string;
-    email: string;
-    role?: string;
-    token?: string; // API token
-    [key: string]: any; // For other user properties
 }

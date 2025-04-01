@@ -10,6 +10,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2 } from "lucide-react"
+import { RecentUser, Ticket, UserActivity, UserData, TicketData, SystemMetric } from "@/Types"
 
 
 // API base URL
@@ -52,7 +53,7 @@ export default function AdminDashboard() {
     try {
       const response = await apiRequest(`${API_URL}${endpoint}`);
       if (!response.ok && response.status === 404) {
-
+        return []
       }
       return await response.json();
     } catch (error) {

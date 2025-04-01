@@ -1,16 +1,16 @@
-type DUser = {
+export type DUser = {
     id: number;
     name: string;
     email: string;
     role: 'admin' | 'user';  // Using literal type for role
 };
 
-type TData = {
+export type TData = {
     exists: boolean;
     user: DUser;
 };
 
-interface UserData {
+export interface UserData {
   userId: number;
   user_id?: number;
   id?: number;
@@ -27,7 +27,7 @@ interface UserData {
   [key: string]: any;
 }
 
-interface TicketData {
+export interface TicketData {
   ticketId: number;
   ticket_id?: number;
   userId: number;
@@ -51,7 +51,7 @@ interface TicketData {
   };
 }
 
-interface RecentUser {
+export interface RecentUser {
   id: string | number;
   name: string;
   email: string;
@@ -59,7 +59,7 @@ interface RecentUser {
   status: string;
 }
 
-interface Ticket {
+export interface Ticket {
   id: number;
   user: string;
   userId: number;
@@ -71,14 +71,46 @@ interface Ticket {
   adminResponse?: string;
 }
 
-interface SystemMetric {
+export interface SystemMetric {
   time: string;
   cpu: number;
   memory: number;
   requests: number;
 }
 
-interface UserActivity {
+export interface UserActivity {
   time: string;
   users: number;
+}
+
+// Define User type based on your backend schema
+export type SUser = {
+  userId: number;
+  fullName: string;
+  email: string;
+  role: string;
+  dateOfBirth: string;
+  gender: string;
+  height: number;
+  weight: number;
+  fitnessGoal: string;
+  experienceLevel: string;
+  preferredWorkoutType: string;
+  activityLevel: string;
+  medicalConditions?: string;
+  dietaryRestrictions?: string;
+  createdAt: string;
+  updatedAt: string;
+  lastActive?: string;
+  status?: string;
+};
+
+export interface TUser {
+  id: string;
+  userId?: number;
+  name: string;
+  email: string;
+  role?: string;
+  token?: string; // API token
+  [key: string]: any; // For other user properties
 }
