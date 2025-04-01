@@ -14,7 +14,8 @@ import { useAuth } from "@/app/contexts/AuthContext"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import Image from "next/image"
-
+import { CircularProgressbar, buildStyles } from "react-circular-progressbar"
+import "react-circular-progressbar/dist/styles.css"
 import "react-big-calendar/lib/css/react-big-calendar.css"
 
 const localizer = momentLocalizer(moment)
@@ -71,7 +72,6 @@ interface WorkoutPlan {
   sessions: Session[];
 }
 
-// Calendar event type
 interface CalendarEvent {
   id: number;
   title: string;
@@ -81,11 +81,9 @@ interface CalendarEvent {
   allDay?: boolean;
 }
 
-// Function to deduplicate exercises by ID
 const deduplicateExercises = (exercises: Exercise[]): Exercise[] => {
   const uniqueExercises = new Map<number, Exercise>();
   
-  // Keep only the first occurrence of each exercise ID
   exercises.forEach(exercise => {
     if (!uniqueExercises.has(exercise.exerciseId)) {
       uniqueExercises.set(exercise.exerciseId, exercise);
@@ -95,7 +93,6 @@ const deduplicateExercises = (exercises: Exercise[]): Exercise[] => {
   return Array.from(uniqueExercises.values());
 };
 
-// API function to fetch user's workout plan
 const fetchUserWorkoutPlan = async (userId: string | number): Promise<WorkoutPlan[]> => {
   try {
     console.log(`Fetching workout plans for user ID: ${userId}`);
@@ -129,18 +126,18 @@ const fetchUserWorkoutPlan = async (userId: string | number): Promise<WorkoutPla
   }
 };
 
-// Calendar view types
 type CalendarView = 'month' | 'week' | 'day' | 'agenda';
 
 export default function WorkoutsPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlan[]>([]);
-  console.log("🚀 ~ WorkoutsPage ~ workoutPlans:", workoutPlans)
+  const [, setWorkoutPlans] = useState<WorkoutPlan[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timer, setTimer] = useState(0);
+  const [initialTimerValue, setInitialTimerValue] = useState(0); // Store the initial rest period for countdown
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [selectedRestPeriod, setSelectedRestPeriod] = useState<number | null>(null); // Track the selected rest period
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [completedExercises, setCompletedExercises] = useState<Record<string, number>>({});
@@ -148,21 +145,54 @@ export default function WorkoutsPage() {
   const [calendarView, setCalendarView] = useState<CalendarView>('week');
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [highlightedDate, setHighlightedDate] = useState(new Date());
-  const [showCreateWorkoutModal, setShowCreateWorkoutModal] = useState(false);
+  const [, setShowCreateWorkoutModal] = useState(false);
 
-  
-  // Timer effect
+  // Timer effect for countdown
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isTimerRunning) {
+    if (isTimerRunning && timer > 0) {
       interval = setInterval(() => {
-        setTimer(prevTimer => prevTimer + 1);
+        setTimer(prevTimer => {
+          if (prevTimer <= 1) {
+            // Timer reached 0, stop and reset
+            setIsTimerRunning(false);
+            return initialTimerValue; // Reset to the initial value
+          }
+          return prevTimer - 1;
+        });
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isTimerRunning]);
+  }, [isTimerRunning, timer, initialTimerValue]);
 
-  // Fetch user workout plans
+  // Function to set the timer and start countdown
+  const handleSetTimer = (seconds: number) => {
+    setTimer(seconds);
+    setInitialTimerValue(seconds);
+    setSelectedRestPeriod(seconds);
+    setIsTimerRunning(false); // Pause the timer when setting a new value
+  };
+
+  // Function to calculate the progress percentage for the circular progress bar
+  const calculateProgress = () => {
+    if (initialTimerValue === 0) return 0;
+    return (timer / initialTimerValue) * 100;
+  };
+
+  // Function to calculate the current day number based on the plan's start date
+  const calculateCurrentDayNumber = (createdAt: string): number => {
+    const startDate = new Date(createdAt);
+    const today = new Date();
+    
+    startDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+
+    const diffTime = today.getTime() - startDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const dayNumber = (diffDays % 7) + 1;
+    return dayNumber > 0 ? dayNumber : 1;
+  };
+
   useEffect(() => {
     if (authLoading || !isAuthenticated) return;
 
@@ -195,22 +225,24 @@ export default function WorkoutsPage() {
           );
           console.log(`Selected most recent plan: ${mostRecentPlan.name}`);
           setActivePlan(mostRecentPlan);
-          
-          // Always start with day 1 session for today
-          const todaySession = mostRecentPlan.sessions.find(s => s.dayNumber === 1);
-          
+
+          const currentDayNumber = calculateCurrentDayNumber(mostRecentPlan.createdAt);
+          console.log(`Calculated current day number: ${currentDayNumber}`);
+
+          const todaySession = mostRecentPlan.sessions.find(s => s.dayNumber === currentDayNumber);
+
           if (todaySession) {
-            console.log(`Setting today's session (Day 1): ${todaySession.name}`);
+            console.log(`Setting today's session (Day ${currentDayNumber}): ${todaySession.name}`);
             setSelectedSession(todaySession);
             setHighlightedDate(new Date());
             setCalendarDate(new Date());
           } else if (mostRecentPlan.sessions.length > 0) {
-            console.log(`No Day 1 session found, selecting first available session`);
+            console.log(`No session found for Day ${currentDayNumber}, selecting first available session`);
             setSelectedSession(mostRecentPlan.sessions[0]);
             setHighlightedDate(new Date());
             setCalendarDate(new Date());
           }
-          
+
           generateCalendarEvents(mostRecentPlan);
         } else {
           console.log("No workout plans found for this user");
@@ -226,23 +258,18 @@ export default function WorkoutsPage() {
     loadWorkoutData();
   }, [user, isAuthenticated, authLoading]);
 
-  // Generate calendar events for the full workout plan duration
   const generateCalendarEvents = (plan: WorkoutPlan) => {
     const events: CalendarEvent[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time part
+    const startDate = new Date(plan.createdAt);
+    startDate.setHours(0, 0, 0, 0);
 
-// Start counting days from 1 (today) regardless of the actual day of week
-const totalDays = plan.durationWeeks * 7;
+    const totalDays = plan.durationWeeks * 7;
 
-for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
-  const currentDate = new Date(today);
-  currentDate.setDate(today.getDate() + dayOffset);
-  
-  // Calculate the day number (1-7) based on offset from today
-  const dayNumber = (dayOffset % 7) + 1;
-
-      // Find session for this day number
+    for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
+      const currentDate = new Date(startDate);
+      currentDate.setDate(startDate.getDate() + dayOffset);
+      
+      const dayNumber = (dayOffset % 7) + 1;
       const session = plan.sessions.find(s => s.dayNumber === dayNumber);
       
       if (session) {
@@ -261,18 +288,15 @@ for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
     setCalendarEvents(events);
   };
 
-  // Handle calendar event selection
   const handleSelectEvent = (event: CalendarEvent) => {
     setSelectedSession(event.resource);
     setHighlightedDate(new Date(event.start));
   };
 
-  // Get all exercises from all sessions
   const allExercises = activePlan?.sessions.flatMap(session => 
     session.exercises.map(ex => ex.exercise)
   ) || [];
   
-  // Filter and deduplicate exercises based on search query
   const filteredExercises = deduplicateExercises(
     allExercises.filter(exercise => 
       exercise.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -281,7 +305,6 @@ for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
     )
   );
 
-  // Handle exercise completion
   const toggleExerciseCompletion = (exerciseId: number) => {
     setCompletedExercises(prev => {
       const key = exerciseId.toString();
@@ -295,7 +318,6 @@ for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
     });
   };
 
-  // Calculate completion percentage
   const getCompletionPercentage = (exerciseId: number) => {
     const workoutExercise = selectedSession?.exercises.find(we => we.exercise.exerciseId === exerciseId);
     if (!workoutExercise) return 0;
@@ -304,7 +326,6 @@ for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
     return (completed / workoutExercise.sets) * 100;
   };
 
-  // Format duration in minutes to hours and minutes
   const formatDuration = (minutes: number) => {
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
@@ -312,7 +333,6 @@ for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
     return mins > 0 ? `${hours} hr ${mins} min` : `${hours} hr`;
   };
   
-  // Handle calendar navigation
   const handlePreviousClick = () => {
     const newDate = new Date(highlightedDate);
     if (calendarView === 'month') {
@@ -344,48 +364,29 @@ for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
     setHighlightedDate(today);
     setCalendarDate(today);
 
-    // Re-select today's session when navigating to today
     if (activePlan) {
-      const dayOfWeek = today.getDay() || 7;
-      const todaySession = activePlan.sessions.find(s => s.dayNumber === dayOfWeek);
+      const currentDayNumber = calculateCurrentDayNumber(activePlan.createdAt);
+      const todaySession = activePlan.sessions.find(s => s.dayNumber === currentDayNumber);
       if (todaySession) {
         setSelectedSession(todaySession);
       }
     }
   };
 
-  // Get vibrant color for each workout day
   const getWorkoutDayColor = (dayNumber: number) => {
     const colors = [
-      '#FF5733', // Bright Orange
-      '#4CAF50', // Green
-      '#3498DB', // Blue
-      '#E91E63', // Pink
-      '#9C27B0', // Purple
-      '#FFC107', // Amber
-      '#00BCD4', // Cyan
+      '#FF5733',
+      '#4CAF50',
+      '#3498DB',
+      '#E91E63',
+      '#9C27B0',
+      '#FFC107',
+      '#00BCD4',
     ];
     
     return dayNumber ? colors[(dayNumber - 1) % colors.length] : '#6B7280';
   };
 
-  // Get color for muscle group/workout type
-  // const getMuscleGroupColor = (muscleGroup: string) => {
-  //   const colors: Record<string, string> = {
-  //     hiit_strength: '#4F46E5',
-  //     cardio_core: '#EF4444',
-  //     tabata: '#F59E0B',
-  //     circuit_training: '#10B981',
-  //     endurance: '#0EA5E9',
-  //     active_recovery: '#8B5CF6',
-  //     rest: '#6B7280',
-  //     core: '#EC4899',
-  //   };
-    
-  //   const normalizedGroup = muscleGroup.toLowerCase().replace(/\s+/g, '_');
-  //   return colors[normalizedGroup] || '#3B82F6';
-  // };
-  
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -417,12 +418,6 @@ for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
             )}
           </p>
         </div>
-        <Button 
-          className="bg-red-500 hover:bg-red-600"
-          onClick={() => setShowCreateWorkoutModal(true)}
-        >
-          <Plus className="mr-2 h-4 w-4" /> New Workout
-        </Button>
       </div>
 
       {error && (
@@ -439,7 +434,7 @@ for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
         <Tabs defaultValue="schedule" className="space-y-6">
           <TabsList>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="workout">Today&apos;s Workout</TabsTrigger>
+            <TabsTrigger value="workout">Today&#39;s Workout</TabsTrigger>
             <TabsTrigger value="exercises">Exercise Library</TabsTrigger>
           </TabsList>
 
@@ -654,7 +649,7 @@ for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
                   <div className="text-center py-12">
                     <h3 className="text-xl font-medium mb-2">No workout plan available</h3>
                     <p className="text-muted-foreground mb-6">
-                      You don&apos;t have any workout plans set up yet.
+                      You don&#39;t have any workout plans set up yet.
                     </p>
                     <Button 
                       className="bg-red-500 hover:bg-red-600"
@@ -750,32 +745,51 @@ for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="flex justify-center">
-                      <div className="text-6xl font-bold tabular-nums">
-                        {Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, "0")}
+                      <div className="relative w-32 h-32">
+                        <CircularProgressbar
+                          value={calculateProgress()}
+                          text={`${Math.floor(timer / 60)}:${(timer % 60).toString().padStart(2, "0")}`}
+                          styles={buildStyles({
+                            pathColor: timer === 0 ? "#ef4444" : isTimerRunning ? "#22c55e" : "#ef4444",
+                            textColor: timer === 0 ? "#ef4444" : isTimerRunning ? "#22c55e" : "#ef4444",
+                            trailColor: "#d1d5db",
+                            textSize: "20px",
+                            pathTransitionDuration: 0.5,
+                          })}
+                        />
                       </div>
                     </div>
                     <div className="flex justify-center space-x-4">
                       <Button 
-                        variant="outline" 
+                        variant={isTimerRunning ? "default" : "outline"} 
                         size="icon" 
                         onClick={() => setIsTimerRunning(!isTimerRunning)}
+                        className={isTimerRunning ? "bg-red-500 hover:bg-red-600" : ""}
                       >
-                        {isTimerRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                        {isTimerRunning ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                       </Button>
-                      <Button variant="outline" size="icon" onClick={() => setTimer(0)}>
-                        <RotateCcw className="h-4 w-4" />
+                      <Button 
+                        variant="outline" 
+                        size="icon" 
+                        onClick={() => {
+                          setTimer(initialTimerValue);
+                          setIsTimerRunning(false);
+                        }}
+                      >
+                        <RotateCcw className="h-5 w-5" />
                       </Button>
                     </div>
-                    <div className="flex justify-center space-x-2">
+                    <div className="flex justify-center space-x-2 flex-wrap gap-y-2">
                       {selectedSession.exercises.length > 0 ? (
                         Array.from(new Set(selectedSession.exercises.map(e => e.restPeriod)))
                           .sort((a, b) => a - b)
                           .map((seconds) => (
                             <Button 
                               key={seconds} 
-                              variant="outline" 
+                              variant={selectedRestPeriod === seconds ? "default" : "outline"} 
                               size="sm" 
-                              onClick={() => setTimer(seconds)}
+                              onClick={() => handleSetTimer(seconds)}
+                              className={selectedRestPeriod === seconds ? "bg-blue-500 hover:bg-blue-600" : ""}
                             >
                               {seconds}s
                             </Button>
@@ -784,9 +798,10 @@ for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
                         [30, 45, 60, 90].map((seconds) => (
                           <Button 
                             key={seconds} 
-                            variant="outline" 
+                            variant={selectedRestPeriod === seconds ? "default" : "outline"} 
                             size="sm" 
-                            onClick={() => setTimer(seconds)}
+                            onClick={() => handleSetTimer(seconds)}
+                            className={selectedRestPeriod === seconds ? "bg-blue-500 hover:bg-blue-600" : ""}
                           >
                             {seconds}s
                           </Button>
@@ -916,7 +931,7 @@ for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
                     <p className="text-muted-foreground">
                       {searchQuery 
                         ? `No exercises match your search for "${searchQuery}"`
-                        : "Your plan doesn&apos;t have any exercises defined yet"
+                        : "Your plan doesn't have any exercises defined yet"
                       }
                     </p>
                   </div>
@@ -925,29 +940,6 @@ for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
             )}
           </TabsContent>
         </Tabs>
-      )}
-
-      {showCreateWorkoutModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Create New Workout Plan</CardTitle>
-              <CardDescription>
-                This feature will be available soon. You&apos;ll be able to create custom workout plans or generate AI-powered ones.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                In the meantime, you can explore your existing workout plans or contact our team for assistance.
-              </p>
-            </CardContent>
-            <CardFooter className="flex justify-end">
-              <Button variant="outline" onClick={() => setShowCreateWorkoutModal(false)}>
-                Close
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
       )}
     </div>
   );

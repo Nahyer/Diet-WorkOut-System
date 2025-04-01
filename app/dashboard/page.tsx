@@ -7,9 +7,7 @@ import {
   Apple,
   Timer,
   Flame,
-  Plus,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AreaChart,
@@ -20,13 +18,14 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { format, differenceInDays, startOfDay } from "date-fns";
 
 interface DashboardData {
   user: { fullName: string };
   streak: number;
   todaysWorkout: { name: string; description: string; duration: number; targetMuscleGroups: string } | null;
   caloriesToday: number;
-  weightData: { date: string; weight: number }[]; // Updated to match Progress Tracking
+  weightData: { date: string; weight: number }[];
   goals: {
     calories: number;
     proteinGrams: number;
@@ -36,7 +35,6 @@ interface DashboardData {
   };
 }
 
-// Type for workout session
 interface WorkoutSession {
   sessionId: number;
   dayNumber: number;
@@ -46,13 +44,12 @@ interface WorkoutSession {
   duration: number;
 }
 
-// Type for workout plan
 interface WorkoutPlan {
   planId: number;
+  createdAt: string;
   sessions: WorkoutSession[];
 }
 
-// Type for consumed meal
 interface ConsumedMeal {
   mealPlanId: number;
   dayNumber: number;
@@ -60,7 +57,6 @@ interface ConsumedMeal {
   calories: number;
 }
 
-// Type for meal plans
 interface MealPlan {
   mealPlanId: number;
   calories: number;
@@ -75,57 +71,95 @@ export default function Dashboard() {
   const [, setMealPlans] = useState<MealPlan[]>([]);
   const firstName = user?.fullName ? user.fullName.split(" ")[0] : "User";
 
+  // Get user ID for unique localStorage keys
+  const userId = getUserId();
+
   // Function to calculate the current streak
   function calculateStreak() {
-    // Get the last login date (or streak update) from localStorage
-    const lastLoginDate = localStorage.getItem("lastLoginDate");
-    const storedStreak = localStorage.getItem("userStreak");
+    if (!userId) return 0; // If no user ID, return 0
 
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-    let currentStreak = storedStreak ? parseInt(storedStreak) : 0;
+    // Use user-specific keys to avoid overlap between users
+    const streakKey = `userStreak_${userId}`;
+    const lastLoginKey = `lastLoginDate_${userId}`;
 
-    if (!lastLoginDate) {
-      // First time login, set streak to 1
+    const lastLoginDateStr = localStorage.getItem(lastLoginKey);
+    const storedStreakStr = localStorage.getItem(streakKey);
+
+    // Get today's date in the user's local time zone
+    const today = startOfDay(new Date());
+    const todayStr = format(today, "yyyy-MM-dd");
+
+    // Parse stored streak, default to 0 if invalid
+    let currentStreak = storedStreakStr && !isNaN(parseInt(storedStreakStr))
+      ? parseInt(storedStreakStr)
+      : 0;
+
+    // If no last login date, this is the first login for this user
+    if (!lastLoginDateStr) {
       currentStreak = 1;
-    } else if (lastLoginDate !== today) {
-      // Check if the last login was yesterday
-      const lastDate = new Date(lastLoginDate);
-      const todayDate = new Date(today);
+    } else {
+      const lastLoginDate = startOfDay(new Date(lastLoginDateStr));
 
-      // Calculate the difference in days
-      const timeDiff = todayDate.getTime() - lastDate.getTime();
-      const dayDiff = Math.floor(timeDiff / (1000 * 3600 * 24));
+      // If the last login was today, don't change the streak
+      if (lastLoginDateStr === todayStr) {
+        // No change to streak
+      } else {
+        const dayDiff = differenceInDays(today, lastLoginDate);
 
-      if (dayDiff === 1) {
-        // Consecutive day, increment streak
-        currentStreak += 1;
-      } else if (dayDiff > 1) {
-        // Streak broken, reset to 1
-        currentStreak = 1;
+        if (dayDiff === 1) {
+          currentStreak += 1;
+        } else if (dayDiff > 1) {
+          currentStreak = 1;
+        }
+        if (dayDiff < 0) {
+          currentStreak = 1;
+        }
       }
-      // If dayDiff === 0, it's the same day, keep streak unchanged
     }
 
-    // Save the updated streak and today's date
-    localStorage.setItem("userStreak", currentStreak.toString());
-    localStorage.setItem("lastLoginDate", today);
+    // Update localStorage with user-specific keys
+    localStorage.setItem(streakKey, currentStreak.toString());
+    localStorage.setItem(lastLoginKey, todayStr);
 
     return currentStreak;
   }
 
-  // Function to get today's workout based on the current day number (always starting with day 1)
+  // Clear streak data when a new user logs in
+  useEffect(() => {
+    if (isAuthenticated && userId) {
+      // Check if this is a new user by looking for a flag or previous data
+      const userFirstLoginKey = `firstLogin_${userId}`;
+      const isFirstLogin = !localStorage.getItem(userFirstLoginKey);
+
+      if (isFirstLogin) {
+        // Clear streak-related data for this user
+        localStorage.removeItem(`userStreak_${userId}`);
+        localStorage.removeItem(`lastLoginDate_${userId}`);
+        // Set a flag to indicate this user has logged in
+        localStorage.setItem(userFirstLoginKey, "true");
+      }
+    }
+  }, [isAuthenticated, userId]);
+
+  const calculateCurrentDayNumber = (createdAt: string): number => {
+    const startDate = startOfDay(new Date(createdAt));
+    const today = startOfDay(new Date());
+
+    const diffDays = differenceInDays(today, startDate);
+    const dayNumber = (diffDays % 7) + 1;
+    return dayNumber > 0 ? dayNumber : 1;
+  };
+
   const getTodaysWorkout = (workoutPlan: WorkoutPlan | null) => {
     if (!workoutPlan || !workoutPlan.sessions || workoutPlan.sessions.length === 0) {
       return null;
     }
-    
-    // Always use day 1 as today's workout to match the workout section behavior
-    // This aligns with how your workout section initializes with day 1
-    const dayNumber = 1;
-    
-    // Find the workout session for day 1
+
+    const dayNumber = calculateCurrentDayNumber(workoutPlan.createdAt);
+    console.log(`Calculated day number for dashboard: ${dayNumber}`);
+
     const todaysSession = workoutPlan.sessions.find(session => session.dayNumber === dayNumber);
-    
+
     if (todaysSession) {
       return {
         name: todaysSession.name,
@@ -134,44 +168,32 @@ export default function Dashboard() {
         targetMuscleGroups: todaysSession.targetMuscleGroups
       };
     }
-    
+
     return null;
   };
 
-  // Calculate total calories consumed today - only counting actual calories, not protein
   const calculateCaloriesToday = (consumedMeals: ConsumedMeal[], mealPlans: MealPlan[]) => {
     if (!consumedMeals || consumedMeals.length === 0) {
       return 0;
     }
     
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    const today = format(new Date(), "yyyy-MM-dd");
     
-    // Filter meals consumed today
     const todaysMeals = consumedMeals.filter(meal => 
-      new Date(meal.consumedAt).toISOString().split('T')[0] === today
+      format(new Date(meal.consumedAt), "yyyy-MM-dd") === today
     );
     
-    // Sum up calories from today's consumed meals - only calories, not protein or other macros
     let totalCalories = 0;
     
-    // If the API isn't providing the right calorie data, we can add a fallback
-    // This is a simplified version that avoids double-counting or adding proteins
-    
-    // Depending on your API, you may need to adjust this logic
-    // For now, we'll just use a fixed value per meal if your API data structure doesn't match
-    
-    // Option 1: If meals have proper calorie data
     todaysMeals.forEach(meal => {
       if (meal.calories) {
         totalCalories += meal.calories;
       } else {
-        // Option 2: If we need to look up the calorie data
         const mealPlan = mealPlans.find(mp => mp.mealPlanId === meal.mealPlanId);
         if (mealPlan) {
           totalCalories += mealPlan.calories;
         } else {
-          // Option 3: Fallback to a reasonable default if needed
-          totalCalories += 300; // Average meal calories as fallback
+          totalCalories += 300;
         }
       }
     });
@@ -188,7 +210,6 @@ export default function Dashboard() {
         const token = localStorage.getItem("token");
         const userId = getUserId();
 
-        // Fetch dashboard data
         const response = await fetch(`http://localhost:8000/api/dashboard/${userId}`, {
           headers: {
             "Content-Type": "application/json",
@@ -200,7 +221,6 @@ export default function Dashboard() {
 
         const dashboardData: DashboardData = await response.json();
         
-        // Fetch workout plan
         const workoutResponse = await fetch(`http://localhost:8000/api/workout-plans/${userId}`, {
           headers: {
             "Content-Type": "application/json",
@@ -212,20 +232,17 @@ export default function Dashboard() {
         if (workoutResponse.ok) {
           const plans = await workoutResponse.json();
           if (plans && plans.length > 0) {
-            workoutPlanData = plans[0]; // Get the first (most recent) workout plan
+            workoutPlanData = plans[0];
           }
         }
         
-        // Fetch consumed meals for today
         const today = new Date();
-        const startOfDay = new Date(today);
-        startOfDay.setHours(0, 0, 0, 0);
-        
+        const startOfDayDate = startOfDay(today);
         const endOfDay = new Date(today);
         endOfDay.setHours(23, 59, 59, 999);
         
         const mealsResponse = await fetch(
-          `http://localhost:8000/api/meal-consumption?userId=${userId}&startDate=${startOfDay.toISOString()}&endDate=${endOfDay.toISOString()}`,
+          `http://localhost:8000/api/meal-consumption?userId=${userId}&startDate=${startOfDayDate.toISOString()}&endDate=${endOfDay.toISOString()}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -239,7 +256,6 @@ export default function Dashboard() {
           consumedMealsData = await mealsResponse.json();
         }
         
-        // Fetch meal plans to get calorie information
         const mealPlansResponse = await fetch(
           `http://localhost:8000/api/nutrition-plans?userId=${userId}`,
           {
@@ -258,16 +274,10 @@ export default function Dashboard() {
           }
         }
         
-        // Calculate the current streak
         const currentStreak = calculateStreak();
-        
-        // Get today's workout
         const todaysWorkout = getTodaysWorkout(workoutPlanData);
-        
-        // Calculate calories consumed today
         const caloriesToday = calculateCaloriesToday(consumedMealsData, mealPlansData);
         
-        // Update the dashboard data
         setData({
           ...dashboardData,
           streak: currentStreak,
@@ -275,7 +285,6 @@ export default function Dashboard() {
           caloriesToday
         });
         
-        // Store the fetched data
         setWorkoutPlan(workoutPlanData);
         setConsumedMeals(consumedMealsData);
         setMealPlans(mealPlansData);
@@ -288,7 +297,6 @@ export default function Dashboard() {
 
     fetchDashboardData();
     
-    // Set up an event listener for meal consumption updates
     const handleMealConsumed = () => {
       fetchDashboardData();
     };
@@ -307,9 +315,6 @@ export default function Dashboard() {
     <div className="flex-1 space-y-8 p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Welcome back, {firstName}!</h2>
-        <Button className="bg-red-500 hover:bg-red-600">
-          <Plus className="mr-2 h-4 w-4" /> New Workout
-        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -324,7 +329,7 @@ export default function Dashboard() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-xs font-medium">Today&apos;s Workout</CardTitle>
+            <CardTitle className="text-xs font-medium">Today&#39;s Workout</CardTitle>
             <Dumbbell className="h-3 w-3 text-black-foreground" />
           </CardHeader>
           <CardContent>
@@ -361,12 +366,12 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height={350}>
               <AreaChart data={data.weightData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" /> {/* Updated to use full date */}
+                <XAxis dataKey="date" />
                 <YAxis />
                 <Tooltip />
                 <Area
                   type="monotone"
-                  dataKey="weight" // Updated to match Progress Tracking
+                  dataKey="weight"
                   stroke="#ef4444"
                   fill="#ef4444"
                   fillOpacity={0.2}
@@ -378,7 +383,7 @@ export default function Dashboard() {
 
         <Card className="col-span-3">
           <CardHeader>
-            <CardTitle>Today&apos;s Focus</CardTitle>
+            <CardTitle>Today&#39;s Focus</CardTitle>
             <CardDescription>Your daily fitness priorities</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
