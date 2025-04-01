@@ -41,8 +41,7 @@ export default function Register() {
 	const [passwordError, setPasswordError] = useState("");
 	const [isGoogleAuth, setIsGoogleAuth] = useState(false);
 	const searchParams = useSearchParams();
-  const {user} = useAuth();
-	const { register } = useAuth();
+	const { user, register } = useAuth();
 
 	const totalSteps = 4;
 
@@ -67,8 +66,6 @@ export default function Register() {
 	useEffect(() => {
 		const source = searchParams.get("source");
 		if (source === "google") {
-					
-
 			setIsGoogleAuth(true);
 
 			// Pre-fill form data with Google info
@@ -126,8 +123,8 @@ export default function Register() {
 	};
 
 	const handleNext = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    console.log("🚀 ~ handleNext ~ step:", step)
+		e.preventDefault();
+		console.log("🚀 ~ handleNext ~ step:", step);
 		if (step === 1) {
 			if (!isGoogleAuth) {
 				// Only validate passwords for non-Google signup
@@ -170,12 +167,11 @@ export default function Register() {
 
 		try {
 			if (isGoogleAuth) {
-
 				// Register with Google data
 				await register(
-          // fullName: formData.name,
+					// fullName: formData.name,
 					// 		email: user!.email,
-          //     password: formData.password,
+					//     password: formData.password,
 					// 		// Add the additional user data
 					// 		dateOfBirth: formData.dateOfBirth,
 					// 		gender: formData.gender,
@@ -187,26 +183,23 @@ export default function Register() {
 					// 		activityLevel: formData.activityLevel,
 					// 		medicalConditions: formData.medicalConditions,
 					// 		dietaryRestrictions: formData.dietaryRestrictions
-          // 	});
-          formData.name,
-          user!.email,
-          formData.password,
-          {
-
-            dateOfBirth: formData.dateOfBirth,
-            gender: formData.gender,
-            height: formData.height ? parseFloat(formData.height) : undefined,
-            weight: formData.weight ? parseFloat(formData.weight) : undefined,
-            fitnessGoal: formData.goal,
-            experienceLevel: formData.experience,
-            preferredWorkoutType: formData.workoutType,
-            activityLevel: formData.activityLevel,
-            medicalConditions: formData.medicalConditions,
-            dietaryRestrictions: formData.dietaryRestrictions,
-          }
-
-        );
-		
+					// 	});
+					formData.name,
+					user!.email,
+					formData.password,
+					{
+						dateOfBirth: formData.dateOfBirth,
+						gender: formData.gender,
+						height: formData.height ? parseFloat(formData.height) : undefined,
+						weight: formData.weight ? parseFloat(formData.weight) : undefined,
+						fitnessGoal: formData.goal,
+						experienceLevel: formData.experience,
+						preferredWorkoutType: formData.workoutType,
+						activityLevel: formData.activityLevel,
+						medicalConditions: formData.medicalConditions,
+						dietaryRestrictions: formData.dietaryRestrictions,
+					}
+				);
 			} else {
 				await register(formData.name, formData.email, formData.password, {
 					dateOfBirth: formData.dateOfBirth,
@@ -220,7 +213,6 @@ export default function Register() {
 					medicalConditions: formData.medicalConditions,
 					dietaryRestrictions: formData.dietaryRestrictions,
 				});
-
 			}
 		} catch (err) {
 			console.error("Registration failed:", err);

@@ -75,9 +75,7 @@ export const authOptions: NextAuthOptions = {
         })
     ],
 
-    pages: {
-        signIn: "/login",
-    },
+    
     callbacks: {
         async signIn({ user, account }) {
 
@@ -223,6 +221,9 @@ export const authOptions: NextAuthOptions = {
                 });
             }
         },
+    },
+    pages: {
+        signIn: "/login",
     },
 
     secret: process.env.NEXTAUTH_SECRET

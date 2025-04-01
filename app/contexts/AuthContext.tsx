@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react"
+import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from "react"
 import { useSession, signIn, signOut, SessionProvider } from "next-auth/react";
 import { useRouter } from "next/navigation"
 import { activityService } from "../services/activity";
