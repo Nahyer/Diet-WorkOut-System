@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Calendar, momentLocalizer } from "react-big-calendar"
+import { Calendar, momentLocalizer, Views } from "react-big-calendar"
 import moment from "moment"
 import { Play, Pause, RotateCcw, ChevronRight, ChevronLeft, Search, Filter, Plus, Loader2, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -13,7 +13,6 @@ import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/app/contexts/AuthContext"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import Image from "next/image"
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar"
 import "react-circular-progressbar/dist/styles.css"
 import "react-big-calendar/lib/css/react-big-calendar.css"
@@ -72,6 +71,7 @@ interface WorkoutPlan {
   sessions: Session[];
 }
 
+// Calendar event type
 interface CalendarEvent {
   id: number;
   title: string;
@@ -81,9 +81,11 @@ interface CalendarEvent {
   allDay?: boolean;
 }
 
+// Function to deduplicate exercises by ID
 const deduplicateExercises = (exercises: Exercise[]): Exercise[] => {
   const uniqueExercises = new Map<number, Exercise>();
   
+  // Keep only the first occurrence of each exercise ID
   exercises.forEach(exercise => {
     if (!uniqueExercises.has(exercise.exerciseId)) {
       uniqueExercises.set(exercise.exerciseId, exercise);
@@ -93,6 +95,7 @@ const deduplicateExercises = (exercises: Exercise[]): Exercise[] => {
   return Array.from(uniqueExercises.values());
 };
 
+// API function to fetch user's workout plan
 const fetchUserWorkoutPlan = async (userId: string | number): Promise<WorkoutPlan[]> => {
   try {
     console.log(`Fetching workout plans for user ID: ${userId}`);
@@ -126,6 +129,7 @@ const fetchUserWorkoutPlan = async (userId: string | number): Promise<WorkoutPla
   }
 };
 
+// Calendar view types
 type CalendarView = 'month' | 'week' | 'day' | 'agenda';
 
 export default function WorkoutsPage() {
@@ -193,6 +197,7 @@ export default function WorkoutsPage() {
     return dayNumber > 0 ? dayNumber : 1;
   };
 
+  // Fetch user workout plans
   useEffect(() => {
     if (authLoading || !isAuthenticated) return;
 
@@ -201,7 +206,7 @@ export default function WorkoutsPage() {
         setLoading(true);
         setError(null);
 
-        const userId = user?.id ?? user?.userId;
+        let userId = user?.id ?? user?.userId;
         if (!userId) {
           setError("User ID not available. Please log in again.");
           setLoading(false);
@@ -225,12 +230,13 @@ export default function WorkoutsPage() {
           );
           console.log(`Selected most recent plan: ${mostRecentPlan.name}`);
           setActivePlan(mostRecentPlan);
-
+          
+          // Use the calculated day number based on the plan's start date
           const currentDayNumber = calculateCurrentDayNumber(mostRecentPlan.createdAt);
           console.log(`Calculated current day number: ${currentDayNumber}`);
-
+          
           const todaySession = mostRecentPlan.sessions.find(s => s.dayNumber === currentDayNumber);
-
+          
           if (todaySession) {
             console.log(`Setting today's session (Day ${currentDayNumber}): ${todaySession.name}`);
             setSelectedSession(todaySession);
@@ -242,7 +248,7 @@ export default function WorkoutsPage() {
             setHighlightedDate(new Date());
             setCalendarDate(new Date());
           }
-
+          
           generateCalendarEvents(mostRecentPlan);
         } else {
           console.log("No workout plans found for this user");
@@ -258,18 +264,23 @@ export default function WorkoutsPage() {
     loadWorkoutData();
   }, [user, isAuthenticated, authLoading]);
 
+  // Generate calendar events for the full workout plan duration
   const generateCalendarEvents = (plan: WorkoutPlan) => {
     const events: CalendarEvent[] = [];
     const startDate = new Date(plan.createdAt);
-    startDate.setHours(0, 0, 0, 0);
+    startDate.setHours(0, 0, 0, 0); // Reset time part
 
+    // Start from plan creation date
     const totalDays = plan.durationWeeks * 7;
 
     for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + dayOffset);
       
+      // Calculate the day number (1-7) based on offset
       const dayNumber = (dayOffset % 7) + 1;
+
+      // Find session for this day number
       const session = plan.sessions.find(s => s.dayNumber === dayNumber);
       
       if (session) {
@@ -288,15 +299,18 @@ export default function WorkoutsPage() {
     setCalendarEvents(events);
   };
 
+  // Handle calendar event selection
   const handleSelectEvent = (event: CalendarEvent) => {
     setSelectedSession(event.resource);
     setHighlightedDate(new Date(event.start));
   };
 
+  // Get all exercises from all sessions
   const allExercises = activePlan?.sessions.flatMap(session => 
     session.exercises.map(ex => ex.exercise)
   ) || [];
   
+  // Filter and deduplicate exercises based on search query
   const filteredExercises = deduplicateExercises(
     allExercises.filter(exercise => 
       exercise.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -305,6 +319,7 @@ export default function WorkoutsPage() {
     )
   );
 
+  // Handle exercise completion
   const toggleExerciseCompletion = (exerciseId: number) => {
     setCompletedExercises(prev => {
       const key = exerciseId.toString();
@@ -318,6 +333,7 @@ export default function WorkoutsPage() {
     });
   };
 
+  // Calculate completion percentage
   const getCompletionPercentage = (exerciseId: number) => {
     const workoutExercise = selectedSession?.exercises.find(we => we.exercise.exerciseId === exerciseId);
     if (!workoutExercise) return 0;
@@ -326,6 +342,7 @@ export default function WorkoutsPage() {
     return (completed / workoutExercise.sets) * 100;
   };
 
+  // Format duration in minutes to hours and minutes
   const formatDuration = (minutes: number) => {
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
@@ -333,6 +350,7 @@ export default function WorkoutsPage() {
     return mins > 0 ? `${hours} hr ${mins} min` : `${hours} hr`;
   };
   
+  // Handle calendar navigation
   const handlePreviousClick = () => {
     const newDate = new Date(highlightedDate);
     if (calendarView === 'month') {
@@ -364,6 +382,7 @@ export default function WorkoutsPage() {
     setHighlightedDate(today);
     setCalendarDate(today);
 
+    // Re-select today's session when navigating to today
     if (activePlan) {
       const currentDayNumber = calculateCurrentDayNumber(activePlan.createdAt);
       const todaySession = activePlan.sessions.find(s => s.dayNumber === currentDayNumber);
@@ -373,20 +392,38 @@ export default function WorkoutsPage() {
     }
   };
 
+  // Get vibrant color for each workout day
   const getWorkoutDayColor = (dayNumber: number) => {
     const colors = [
-      '#FF5733',
-      '#4CAF50',
-      '#3498DB',
-      '#E91E63',
-      '#9C27B0',
-      '#FFC107',
-      '#00BCD4',
+      '#FF5733', // Bright Orange
+      '#4CAF50', // Green
+      '#3498DB', // Blue
+      '#E91E63', // Pink
+      '#9C27B0', // Purple
+      '#FFC107', // Amber
+      '#00BCD4', // Cyan
     ];
     
     return dayNumber ? colors[(dayNumber - 1) % colors.length] : '#6B7280';
   };
-
+  
+  // Get color for muscle group/workout type
+  const getMuscleGroupColor = (muscleGroup: string) => {
+    const colors: Record<string, string> = {
+      hiit_strength: '#4F46E5',
+      cardio_core: '#EF4444',
+      tabata: '#F59E0B',
+      circuit_training: '#10B981',
+      endurance: '#0EA5E9',
+      active_recovery: '#8B5CF6',
+      rest: '#6B7280',
+      core: '#EC4899',
+    };
+    
+    const normalizedGroup = muscleGroup.toLowerCase().replace(/\s+/g, '_');
+    return colors[normalizedGroup] || '#3B82F6';
+  };
+  
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -889,13 +926,10 @@ export default function WorkoutsPage() {
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredExercises.map((exercise) => (
                   <Card key={exercise.exerciseId} className="overflow-hidden">
-                    <Image
+                    <img
                       src={exercise.imageUrl || "/api/placeholder/400/250"}
                       alt={exercise.name}
-                      className="aspect-video object-cover"
-                      width={400}
-                      height={250}
-                      layout="responsive"
+                      className="aspect-video object-cover w-full h-48"
                     />
                     <CardHeader>
                       <CardTitle>{exercise.name}</CardTitle>
