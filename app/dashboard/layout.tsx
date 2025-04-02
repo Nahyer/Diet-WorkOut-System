@@ -79,21 +79,6 @@ export default function DashboardLayout({
                 <PanelLeft className={cn("h-5 w-5 transition-transform duration-300", !isExpanded && "rotate-180")} />
               </Button>
 
-              {/* Logo */}
-              <div className="flex h-14 items-center border-b border-gray-800 px-4">
-                <Link href="/" className="flex items-center gap-2">
-                  <Dumbbell className="h-6 w-6 text-red-500" />
-                  <span
-                    className={cn(
-                      "text-lg font-bold text-white transition-opacity duration-300",
-                      isExpanded ? "opacity-100" : "opacity-0 hidden",
-                    )}
-                  >
-                    Fitness Studio
-                  </span>
-                </Link>
-              </div>
-
               {/* Navigation */}
               <nav className="flex flex-col gap-2 p-3">
                 {routes.map((route) => (
@@ -113,18 +98,6 @@ export default function DashboardLayout({
                   </Link>
                 ))}
 
-                {/* Logout button */}
-                <button
-                  onClick={logout}
-                  className={cn(
-                    "flex items-center gap-4 rounded-lg px-3 py-2 transition-colors mt-auto",
-                    "text-gray-400 hover:bg-gray-800 hover:text-white",
-                    !isExpanded && "justify-center px-2",
-                  )}
-                >
-                  <LogOut className="h-5 w-5 shrink-0 text-red-500" />
-                  {isExpanded && <span className="text-sm font-medium">Logout</span>}
-                </button>
               </nav>
             </div>
           </aside>
