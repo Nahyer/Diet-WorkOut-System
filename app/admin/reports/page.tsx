@@ -40,16 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { userService } from "@/app/services/user";
-import { Pagination } from "@/components/common/pagination";
+
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable"; // Import autoTable directly
 import { useRouter } from "next/navigation"
@@ -297,38 +288,202 @@ export default function ReportsPage() {
     fetchData();
   }, [dateRange, toast]);
 
-  // Export users as PDF
-  const exportUsers = () => {
-    try {
-      const doc = new jsPDF();
-      doc.text("Users Export", 20, 20);
+  // // Export users as PDF
+  // const exportUsers = () => {
+  //   try {
+  //     const doc = new jsPDF();
+  //     doc.text("Users Export", 20, 20);
 
-      const tableData = users.map((user) => [
+  //     const tableData = users.map((user) => [
+  //       user.fullName,
+  //       user.email,
+  //       user.role,
+  //       format(new Date(user.createdAt), "MMM d, yyyy"),
+  //       user.lastActive || "Never",
+  //       user.status || "active",
+  //     ]);
+
+  //     autoTable(doc, {
+  //       head: [["Full Name", "Email", "Role", "Registered", "Last Active", "Status"]],
+  //       body: tableData,
+  //       startY: 30,
+  //     });
+
+  //     doc.save(`users-export-${format(new Date(), "yyyy-MM-dd")}.pdf`);
+  //     toast({
+  //       title: "Success",
+  //       description: "Users exported successfully as PDF.",
+  //       variant: "default",
+  //     });
+  //   } catch (error) {
+  //     console.error("Error exporting users:", error);
+  //     toast({
+  //       title: "Error",
+  //       description: error instanceof Error ? error.message : "Failed to export users. Please try again.",
+  //       variant: "destructive",
+  //     });
+  //   }
+  // };
+
+  const exportSummaryReport = () => {
+    try {
+      // Create PDF document
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 20;
+      let yPos = margin;
+      
+      // Add header with logo and title
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.text("System Analytics Summary Report", margin, yPos);
+      yPos += 10;
+      
+      // Add date range and report generation time
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(
+        `Report Period: ${format(dateRange.from, "MMM d, yyyy")} - ${format(dateRange.to, "MMM d, yyyy")}`, 
+        margin, 
+        yPos
+      );
+      yPos += 5;
+      doc.text(`Generated on: ${format(new Date(), "MMM d, yyyy 'at' HH:mm")}`, margin, yPos);
+      yPos += 10;
+      
+      // Add description
+      doc.setFontSize(10);
+      doc.text(
+        "This report provides a summary of system metrics, user statistics, and performance indicators.",
+        margin,
+        yPos
+      );
+      yPos += 15;
+      
+      // Key Metrics Section
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text("Key Performance Metrics", margin, yPos);
+      yPos += 10;
+      
+      // Create metrics table
+      const metricsData = [
+        ["Metric", "Value", "Change"],
+        ["Active Users", `${keyMetrics?.activeUsers.count || 0}`, `${formatChange(keyMetrics?.activeUsers.change || 0)}`],
+        ["New Users", `${keyMetrics?.newUsers.count || 0}`, `${formatChange(keyMetrics?.newUsers.change || 0)}`],
+        ["Workout Completion", `${keyMetrics?.workoutCompletion.percentage.toFixed(1) || 0}%`, `${formatChange(keyMetrics?.workoutCompletion.change || 0)}`],
+        ["Nutrition Goals", `${keyMetrics?.nutritionGoals.percentage.toFixed(1) || 0}%`, `${formatChange(keyMetrics?.nutritionGoals.change || 0)}`]
+      ];
+      
+      autoTable(doc, {
+        startY: yPos,
+        head: [metricsData[0]],
+        body: metricsData.slice(1),
+        theme: "grid",
+        headStyles: { fillColor: [66, 139, 202], textColor: 255 },
+        margin: { left: margin },
+        styles: { overflow: "linebreak", cellWidth: "auto" },
+        columnStyles: { 0: { fontStyle: "bold" } }
+      });
+      
+      yPos = (doc as any).lastAutoTable.finalY + 15;
+      
+      // User Growth Chart (we'll create a text representation since jsPDF doesn't directly support charts)
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text("User Growth Summary", margin, yPos);
+      yPos += 10;
+      
+      // Add user growth data as table
+      if (analyticsData && analyticsData.userGrowth) {
+        // Calculate summary data
+        const totalNewUsers = analyticsData.userGrowth.reduce((sum, item) => sum + item.count, 0);
+        const avgDailyUsers = totalNewUsers / analyticsData.userGrowth.length || 0;
+        const maxDayRegistration = analyticsData.userGrowth.reduce(
+          (max, item) => Math.max(max, item.count), 0
+        );
+        
+        // Add summary text
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(`Total New Users: ${totalNewUsers}`, margin, yPos);
+        yPos += 5;
+        doc.text(`Average Daily Registrations: ${avgDailyUsers.toFixed(1)}`, margin, yPos);
+        yPos += 5;
+        doc.text(`Peak Day Registrations: ${maxDayRegistration}`, margin, yPos);
+        yPos += 10;
+        
+        // Create a table with the user growth data
+        const growthData = [["Date", "New Registrations"]];
+        analyticsData.userGrowth.forEach(item => {
+          growthData.push([format(new Date(item.date), "MMM d, yyyy"), item.count.toString()]);
+        });
+        
+        autoTable(doc, {
+          startY: yPos,
+          head: [growthData[0]],
+          body: growthData.slice(1),
+          theme: "striped",
+          margin: { left: margin },
+          styles: { overflow: "linebreak", cellWidth: "auto" }
+        });
+        
+        yPos = (doc as any).lastAutoTable.finalY + 15;
+      }
+      
+      // Recent Users Section
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text("Recent User Activity", margin, yPos);
+      yPos += 10;
+      
+      // Add user table
+      const userData = users.slice(0, 10).map(user => [
         user.fullName,
         user.email,
         user.role,
         format(new Date(user.createdAt), "MMM d, yyyy"),
-        user.lastActive || "Never",
-        user.status || "active",
+        user.lastActive || "Never"
       ]);
-
+      
       autoTable(doc, {
-        head: [["Full Name", "Email", "Role", "Registered", "Last Active", "Status"]],
-        body: tableData,
-        startY: 30,
+        startY: yPos,
+        head: [["Name", "Email", "Role", "Registered", "Last Active"]],
+        body: userData,
+        theme: "grid",
+        margin: { left: margin },
+        styles: { overflow: "linebreak", cellWidth: "auto", fontSize: 8 }
       });
-
-      doc.save(`users-export-${format(new Date(), "yyyy-MM-dd")}.pdf`);
+      
+      yPos = (doc as any).lastAutoTable.finalY + 15;
+      
+      // Add footer
+      const totalPages = doc.internal.pages.length - 1;
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.setTextColor(150);
+        doc.text(
+          `Page ${i} of ${totalPages} - Fitness & Nutrition Dashboard`, 
+          pageWidth / 2, 
+          doc.internal.pageSize.getHeight() - 10, 
+          { align: "center" }
+        );
+      }
+      
+      // Save the PDF
+      doc.save(`analytics-report-${format(new Date(), "yyyy-MM-dd")}.pdf`);
+      
       toast({
         title: "Success",
-        description: "Users exported successfully as PDF.",
+        description: "Summary report exported successfully as PDF.",
         variant: "default",
       });
     } catch (error) {
-      console.error("Error exporting users:", error);
+      console.error("Error exporting summary report:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to export users. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to export report. Please try again.",
         variant: "destructive",
       });
     }
@@ -426,10 +581,10 @@ export default function ReportsPage() {
           <span className="text-sm text-muted-foreground">
             {format(dateRange.from, "MMM d, yyyy")} - {format(dateRange.to, "MMM d, yyyy")}
           </span>
-          <Button>
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
+          <Button onClick={exportSummaryReport}>
+  <Download className="mr-2 h-4 w-4" />
+  Export
+</Button>
         </div>
       </div>
 
