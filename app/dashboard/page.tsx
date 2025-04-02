@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { Dumbbell, Apple, Timer, Flame, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
-  Dumbbell,
-  Apple,
-  Timer,
-  Flame,
-} from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   AreaChart,
   Area,
@@ -23,7 +25,12 @@ import { format, differenceInDays, startOfDay } from "date-fns";
 interface DashboardData {
   user: { fullName: string };
   streak: number;
-  todaysWorkout: { name: string; description: string; duration: number; targetMuscleGroups: string } | null;
+  todaysWorkout: {
+    name: string;
+    description: string;
+    duration: number;
+    targetMuscleGroups: string;
+  } | null;
   caloriesToday: number;
   weightData: { date: string; weight: number }[];
   goals: {
@@ -63,58 +70,93 @@ interface MealPlan {
 }
 
 export default function Dashboard() {
-  const { getUserId, isAuthenticated } = useAuth();
+  const { user, getUserId, isAuthenticated } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlan | null>(null);
+  const [consumedMeals, setConsumedMeals] = useState<ConsumedMeal[]>([]);
+  const [mealPlans, setMealPlans] = useState<MealPlan[]>([]);
+
+  // Use the fullName from the API response (data.user.fullName)
+  const firstName = data?.user?.fullName
+    ? data.user.fullName.split(" ")[0]
+    : "User";
 
   // Get user ID for unique localStorage keys
   const userId = getUserId();
 
-  // Use the fullName from the API response (data.user.fullName)
-  const firstName = data?.user?.fullName ? data.user.fullName.split(" ")[0] : "User";
-
   // Function to calculate the current streak
   function calculateStreak() {
-    if (!userId) return 0;
+    if (!userId) return 0; // If no user ID, return 0
 
+    // Use user-specific keys to avoid overlap between users
     const streakKey = `userStreak_${userId}`;
     const lastLoginKey = `lastLoginDate_${userId}`;
 
     const lastLoginDateStr = localStorage.getItem(lastLoginKey);
     const storedStreakStr = localStorage.getItem(streakKey);
 
+    // Get today's date in the user's local time zone
     const today = startOfDay(new Date());
     const todayStr = format(today, "yyyy-MM-dd");
 
-    let currentStreak = storedStreakStr && !isNaN(parseInt(storedStreakStr))
-      ? parseInt(storedStreakStr)
-      : 0;
+    // Parse stored streak, default to 0 if invalid
+    let currentStreak =
+      storedStreakStr && !isNaN(parseInt(storedStreakStr))
+        ? parseInt(storedStreakStr)
+        : 0;
 
+    // If no last login date, this is the first login for this user
     if (!lastLoginDateStr) {
       currentStreak = 1;
     } else {
       const lastLoginDate = startOfDay(new Date(lastLoginDateStr));
+
+      // If the last login was today, don't change the streak
       if (lastLoginDateStr === todayStr) {
         // No change to streak
       } else {
         const dayDiff = differenceInDays(today, lastLoginDate);
+
         if (dayDiff === 1) {
           currentStreak += 1;
-        } else if (dayDiff > 1 || dayDiff < 0) {
+        } else if (dayDiff > 1) {
+          currentStreak = 1;
+        }
+        if (dayDiff < 0) {
           currentStreak = 1;
         }
       }
     }
 
+    // Update localStorage with user-specific keys
     localStorage.setItem(streakKey, currentStreak.toString());
     localStorage.setItem(lastLoginKey, todayStr);
 
     return currentStreak;
   }
 
+  // Clear streak data when a new user logs in
+  useEffect(() => {
+    if (isAuthenticated && userId) {
+      // Check if this is a new user by looking for a flag or previous data
+      const userFirstLoginKey = `firstLogin_${userId}`;
+      const isFirstLogin = !localStorage.getItem(userFirstLoginKey);
+
+      if (isFirstLogin) {
+        // Clear streak-related data for this user
+        localStorage.removeItem(`userStreak_${userId}`);
+        localStorage.removeItem(`lastLoginDate_${userId}`);
+        // Set a flag to indicate this user has logged in
+        localStorage.setItem(userFirstLoginKey, "true");
+      }
+    }
+  }, [isAuthenticated, userId]);
+
   const calculateCurrentDayNumber = (createdAt: string): number => {
     const startDate = startOfDay(new Date(createdAt));
     const today = startOfDay(new Date());
+
     const diffDays = differenceInDays(today, startDate);
     const dayNumber = (diffDays % 7) + 1;
     return dayNumber > 0 ? dayNumber : 1;
@@ -128,34 +170,51 @@ export default function Dashboard() {
     const dayNumber = calculateCurrentDayNumber(workoutPlan.createdAt);
     console.log(`Calculated day number for dashboard: ${dayNumber}`);
 
-    const todaysSession = workoutPlan.sessions.find(session => session.dayNumber === dayNumber);
+    const todaysSession = workoutPlan.sessions.find(
+      (session) => session.dayNumber === dayNumber
+    );
 
-    return todaysSession ? {
-      name: todaysSession.name,
-      description: todaysSession.description,
-      duration: todaysSession.duration,
-      targetMuscleGroups: todaysSession.targetMuscleGroups,
-    } : null;
+    if (todaysSession) {
+      return {
+        name: todaysSession.name,
+        description: todaysSession.description,
+        duration: todaysSession.duration,
+        targetMuscleGroups: todaysSession.targetMuscleGroups,
+      };
+    }
+
+    return null;
   };
 
-  const calculateCaloriesToday = (consumedMeals: ConsumedMeal[], mealPlans: MealPlan[]) => {
+  const calculateCaloriesToday = (
+    consumedMeals: ConsumedMeal[],
+    mealPlans: MealPlan[]
+  ) => {
     if (!consumedMeals || consumedMeals.length === 0) {
       return 0;
     }
 
     const today = format(new Date(), "yyyy-MM-dd");
-    const todaysMeals = consumedMeals.filter(meal =>
-      format(new Date(meal.consumedAt), "yyyy-MM-dd") === today
+
+    const todaysMeals = consumedMeals.filter(
+      (meal) =>
+        format(new Date(meal.consumedAt), "yyyy-MM-dd") === today
     );
 
     let totalCalories = 0;
 
-    todaysMeals.forEach(meal => {
+    todaysMeals.forEach((meal) => {
       if (meal.calories) {
         totalCalories += meal.calories;
       } else {
-        const mealPlan = mealPlans.find(mp => mp.mealPlanId === meal.mealPlanId);
-        totalCalories += mealPlan ? mealPlan.calories : 300;
+        const mealPlan = mealPlans.find(
+          (mp) => mp.mealPlanId === meal.mealPlanId
+        );
+        if (mealPlan) {
+          totalCalories += mealPlan.calories;
+        } else {
+          totalCalories += 300;
+        }
       }
     });
 
@@ -164,36 +223,43 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function fetchDashboardData() {
-      if (!isAuthenticated || !userId) return;
+      if (!isAuthenticated || !getUserId()) return;
 
       try {
         setLoading(true);
         const token = localStorage.getItem("token");
+        const userId = getUserId();
 
-        const response = await fetch(`http://localhost:8000/api/dashboard/${userId}`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await fetch(
+          `http://localhost:8000/api/dashboard/${userId}`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         if (!response.ok) throw new Error("Failed to fetch dashboard data");
 
         const dashboardData: DashboardData = await response.json();
         console.log("Dashboard data from API:", dashboardData);
 
-        const workoutResponse = await fetch(`http://localhost:8000/api/workout-plans/${userId}`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const workoutResponse = await fetch(
+          `http://localhost:8000/api/workout-plans/${userId}`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
-        let workoutPlan: WorkoutPlan | null = null;
+        let workoutPlanData = null;
         if (workoutResponse.ok) {
           const plans = await workoutResponse.json();
           if (plans && plans.length > 0) {
-            workoutPlan = plans[0];
+            workoutPlanData = plans[0];
           }
         }
 
@@ -212,7 +278,10 @@ export default function Dashboard() {
           }
         );
 
-        const consumedMeals: ConsumedMeal[] = mealsResponse.ok ? await mealsResponse.json() : [];
+        let consumedMealsData: ConsumedMeal[] = [];
+        if (mealsResponse.ok) {
+          consumedMealsData = await mealsResponse.json();
+        }
 
         const mealPlansResponse = await fetch(
           `http://localhost:8000/api/nutrition-plans?userId=${userId}`,
@@ -224,17 +293,20 @@ export default function Dashboard() {
           }
         );
 
-        let mealPlans: MealPlan[] = [];
+        let mealPlansData: MealPlan[] = [];
         if (mealPlansResponse.ok) {
           const plans = await mealPlansResponse.json();
           if (plans && plans.length > 0 && plans[0].mealPlans) {
-            mealPlans = plans[0].mealPlans;
+            mealPlansData = plans[0].mealPlans;
           }
         }
 
         const currentStreak = calculateStreak();
-        const todaysWorkout = getTodaysWorkout(workoutPlan);
-        const caloriesToday = calculateCaloriesToday(consumedMeals, mealPlans);
+        const todaysWorkout = getTodaysWorkout(workoutPlanData);
+        const caloriesToday = calculateCaloriesToday(
+          consumedMealsData,
+          mealPlansData
+        );
 
         setData({
           ...dashboardData,
@@ -242,6 +314,10 @@ export default function Dashboard() {
           todaysWorkout: todaysWorkout || dashboardData.todaysWorkout,
           caloriesToday,
         });
+
+        setWorkoutPlan(workoutPlanData);
+        setConsumedMeals(consumedMealsData);
+        setMealPlans(mealPlansData);
       } catch (error) {
         console.error("Error fetching dashboard:", error);
       } finally {
@@ -260,30 +336,38 @@ export default function Dashboard() {
     return () => {
       window.removeEventListener("mealConsumed", handleMealConsumed);
     };
-  }, [isAuthenticated, userId, calculateStreak, getTodaysWorkout]); // Added dependencies
+  }, [isAuthenticated, getUserId]);
 
   if (loading) return <div>Loading...</div>;
   if (!data) return <div>Error loading dashboard</div>;
 
   return (
-    <div className="flex-1 space-y-8 p-8 pt-6">
+    <div className="flex-1 space-y-8 p-8 pt-4">
       <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Welcome back, {firstName}!</h2>
+        <h2 className="text-3xl font-bold tracking-tight">
+          Welcome back, {firstName}!
+        </h2>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="bg-gradient-to-br from-red-500 to-red-600">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-xs font-medium text-white">Current Streak</CardTitle>
+            <CardTitle className="text-xs font-medium text-white">
+              Current Streak
+            </CardTitle>
             <Flame className="h-3 w-3 text-white" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold text-white">{data.streak} Days</div>
+            <div className="text-xl font-bold text-white">
+              {data.streak} Days
+            </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-xs font-medium">Today\'s Workout</CardTitle>
+            <CardTitle className="text-xs font-medium">
+              Today's Workout
+            </CardTitle>
             <Dumbbell className="h-3 w-3 text-black-foreground" />
           </CardHeader>
           <CardContent>
@@ -299,13 +383,17 @@ export default function Dashboard() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-xs font-medium">Calories Today</CardTitle>
+            <CardTitle className="text-xs font-medium">
+              Calories Today
+            </CardTitle>
             <Apple className="h-3 w-3 text-green-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold">{data.caloriesToday}</div>
             <p className="text-[10px] text-muted-foreground mt-1">
-              {data.goals?.calories ? `Goal: ${data.goals.calories} calories` : "Track your daily intake"}
+              {data.goals?.calories
+                ? `Goal: ${data.goals.calories} calories`
+                : "Track your daily intake"}
             </p>
           </CardContent>
         </Card>
@@ -337,7 +425,7 @@ export default function Dashboard() {
 
         <Card className="col-span-3">
           <CardHeader>
-            <CardTitle>Today\'s Focus</CardTitle>
+            <CardTitle>Today's Focus</CardTitle>
             <CardDescription>Your daily fitness priorities</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
