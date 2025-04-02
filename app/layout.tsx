@@ -24,9 +24,10 @@ export default function RootLayout({
         <NextAuthProvider>
           <AuthProvider>
             <div className="flex min-h-screen flex-col">
-              <Navbar /> {/* Always show the Navbar */}
+              {/* Hide Navbar on dashboard routes */}
+              {!isDashboard && <Navbar />}
               <main className="flex-1">{children}</main>
-              {!isDashboard && <Footer />} {/* Keep Footer hidden on dashboard/admin */}
+              {!isDashboard && <Footer />}
             </div>
           </AuthProvider>
         </NextAuthProvider>
