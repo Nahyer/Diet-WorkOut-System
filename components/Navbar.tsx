@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { OnboardingDialog } from "./onboarding-dialog";
 import { useAuth } from "@/app/contexts/AuthContext";
-import { cn } from "@/lib/utils"; // Import the cn utility
+import { cn } from "@/lib/utils";
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -30,7 +30,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-gray-900 text-white">
+    <header className="sticky top-0 z-50 w-full border-b bg-[#1E2A44] text-white">
       <div className="container flex h-12 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center">
           <Link href="/" className="flex items-center space-x-2">
@@ -64,6 +64,9 @@ export default function Navbar() {
         <div className="hidden md:flex items-center space-x-4">
           {isAuthenticated ? (
             <>
+              <span className="text-sm text-gray-300">
+                Welcome, {user?.name?.split(" ")[0] || "User"}!
+              </span>
               <button
                 onClick={handleLogout}
                 className={cn(
@@ -147,8 +150,8 @@ export default function Navbar() {
                     <button
                       onClick={handleLogout}
                       className={cn(
-                        "flex items-center gap-5 rounded-lg px-3 py-2 transition-colors w-full",
-                        "text-red-500 hover:bg-red-500 hover:text-white"
+                        "flex items-center gap-4 rounded-lg px-3 py-2 transition-colors w-full",
+                        "text-gray-400 hover:bg-gray-800 hover:text-white"
                       )}
                     >
                       <LogOut className="h-5 w-5 shrink-0 text-red-500" />
