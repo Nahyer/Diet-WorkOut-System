@@ -40,16 +40,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { userService } from "@/app/services/user";
-import { Pagination } from "@/components/common/pagination";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable"; // Import autoTable directly
 import { useRouter } from "next/navigation"

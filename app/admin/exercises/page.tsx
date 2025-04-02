@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
-import { Search, Filter, MoreHorizontal, Download, Trash2, Eye, Edit } from "lucide-react";
+import { Search, Filter, MoreHorizontal, Download, Trash2, Eye} from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
